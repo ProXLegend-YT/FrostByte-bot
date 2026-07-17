@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frostbyte — Control Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #060d16;
+    --panel: #0d1826;
+    --panel-2: #101f30;
+    --border: #1b2e42;
+    --border-hover: #2a4a63;
+    --ice: #38bdf8;
+    --ice-light: #7dd3fc;
+    --cyan: #22d3ee;
+    --navy-deep: #0c4a6e;
+    --text: #e8f3fb;
+    --text-muted: #7d97ab;
+    --text-dim: #4d647a;
+    --danger: #f87171;
+    --success: #4ade80;
+    --warn: #fbbf24;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(ellipse 1200px 800px at 15% -10%, #0d2438 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: 'Manrope', -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+  }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: rgba(9, 17, 27, 0.7);
+    border-right: 1px solid var(--border);
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 10px 24px;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+  }
+  .brand .flake { font-size: 22px; filter: drop-shadow(0 0 8px rgba(56,189,248,0.6)); }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 12px;
+    border-radius: 8px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.15s, color 0.15s;
+    user-select: none;
+  }
+  .nav-item:hover { background: rgba(56,189,248,0.06); color: var(--text); }
+  .nav-item.active { background: linear-gradient(90deg, rgba(56,189,248,0.15), rgba(56,189,248,0.02)); color: var(--ice-light); box-shadow: inset 2px 0 0 var(--ice); }
+  .nav-item .ic { width: 18px; text-align: center; opacity: 0.9; }
+  .sidebar-foot { margin-top: auto; padding: 10px; font-size: 11px; color: var(--text-dim); }
+  .conn-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .conn-dot.on { background: var(--success); box-shadow: 0 0 6px var(--success); }
+  .conn-dot.off { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+
+  /* ── Main ── */
+  .main { flex: 1; padding: 32px 40px 60px; max-width: 1100px; }
+  .page { display: none; animation: fadein 0.25s ease; }
+  .page.active { display: block; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.02em; }
+  .subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 28px; }
+
+  .card {
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin-bottom: 18px;
+  }
+  .card-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ice-light); margin: 0 0 14px; display: flex; align-items: center; justify-content: space-between; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; }
+  .stat { background: rgba(56,189,248,0.04); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  .stat .val { font-size: 24px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; color: var(--text); }
+  .stat .lbl { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .row.between { justify-content: space-between; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-label { font-size: 14px; font-weight: 600; }
+  .toggle-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .switch { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; inset: 0; background: #1e2f42; border-radius: 24px; transition: 0.2s; }
+  .slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; top: 3px; background: #64748b; border-radius: 50%; transition: 0.2s; }
+  input:checked + .slider { background: rgba(56,189,248,0.25); }
+  input:checked + .slider:before { background: var(--ice); transform: translateX(18px); box-shadow: 0 0 8px var(--ice); }
+
+  input[type=text], input[type=number], input[type=password], input[type=url], select, textarea {
+    background: #0a1622;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 12px;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--ice); }
+  textarea { resize: vertical; }
+  label.field-label { font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; display: block; }
+
+  button {
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 13px;
+    border: none;
+    border-radius: 7px;
+    padding: 9px 16px;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.15s;
+  }
+  button:active { transform: scale(0.97); }
+  .btn-primary { background: linear-gradient(135deg, var(--ice), var(--cyan)); color: #04141f; }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+  .btn-ghost:hover { color: var(--text); border-color: var(--ice); }
+  .btn-danger { background: rgba(248,113,113,0.12); color: var(--danger); border: 1px solid rgba(248,113,113,0.3); }
+  .btn-danger:hover { background: rgba(248,113,113,0.2); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  .pill { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .pill.on { background: rgba(74,222,128,0.15); color: var(--success); }
+  .pill.off { background: rgba(125,151,171,0.15); color: var(--text-muted); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  td { padding: 10px; border-bottom: 1px solid rgba(27,46,66,0.5); }
+  tr:last-child td { border-bottom: none; }
+  .empty-state { text-align: center; padding: 30px 20px; color: var(--text-dim); font-size: 13px; }
+
+  .badge-tag { background: rgba(56,189,248,0.1); color: var(--ice-light); padding: 2px 8px; border-radius: 5px; font-size: 11px; font-family: 'IBM Plex Mono', monospace; }
+  .word-chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25); color: #fca5a5; padding: 4px 10px; border-radius: 20px; font-size: 12px; margin: 3px; }
+  .word-chip button { background: none; border: none; color: #fca5a5; font-size: 14px; padding: 0; cursor: pointer; line-height: 1; }
+
+  /* ── Login Gate ── */
+  .gate { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .gate-card { width: 380px; text-align: center; }
+  .gate-card .flake { font-size: 40px; margin-bottom: 10px; filter: drop-shadow(0 0 12px rgba(56,189,248,0.7)); }
+  .gate-card h2 { margin: 0 0 6px; font-size: 20px; }
+  .gate-card p { color: var(--text-muted); font-size: 13px; margin: 0 0 22px; }
+  .gate-card input { width: 100%; margin-bottom: 10px; }
+  .gate-card button { width: 100%; padding: 11px; }
+  .gate-error { color: var(--danger); font-size: 12px; margin-top: 10px; min-height: 16px; }
+
+  /* ── Embed Builder Preview ── */
+  .builder-grid { display: grid; grid-template-columns: 1fr 380px; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .builder-grid { grid-template-columns: 1fr; } }
+  .field-group { margin-bottom: 14px; }
+  .discord-preview-bg { background: #313338; border-radius: 8px; padding: 16px; font-family: 'gg sans', 'Manrope', sans-serif; }
+  .discord-embed { border-left: 4px solid var(--ice); background: #2b2d31; border-radius: 4px; padding: 10px 14px 14px; max-width: 100%; }
+  .discord-embed .d-title { color: #fff; font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+  .discord-embed .d-desc { color: #dbdee1; font-size: 13.5px; line-height: 1.4; white-space: pre-wrap; }
+  .discord-embed .d-field { margin-top: 10px; }
+  .discord-embed .d-field-name { color: #fff; font-weight: 700; font-size: 12.5px; }
+  .discord-embed .d-field-value { color: #dbdee1; font-size: 12.5px; }
+  .discord-embed .d-footer { color: #949ba4; font-size: 11.5px; margin-top: 10px; }
+  .discord-embed img.d-image { max-width: 100%; border-radius: 4px; margin-top: 10px; }
+  .discord-embed img.d-thumb { float: right; width: 80px; height: 80px; border-radius: 4px; object-fit: cover; }
+
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+  .toast-wrap { position: fixed; bottom: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+  .toast { background: var(--panel-2); border: 1px solid var(--border); border-left: 3px solid var(--ice); padding: 12px 16px; border-radius: 8px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); animation: slidein 0.2s ease; }
+  .toast.err { border-left-color: var(--danger); }
+  @keyframes slidein { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate">
+  <div class="gate-card card">
+    <div class="flake">❄️</div>
+    <h2>Frostbyte Control Panel</h2>
+    <p id="gate-subtitle">Connect to your bot's backend first</p>
+    <p style="font-size:11px; color:var(--text-dim); margin-top:-14px; margin-bottom:18px; word-break:break-all;">Using: <span id="gate-current-url"></span></p>
+
+    <div id="gate-step-url">
+      <label class="field-label" style="text-align:left">Backend URL</label>
+      <input type="text" id="gate-url" placeholder="http://your-bot-host:port">
+      <button class="btn-primary" onclick="checkBackend()">Continue</button>
+    </div>
+
+    <div id="gate-step-login" style="display:none">
+      <button class="btn-primary" id="discord-login-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; background:#5865F2; color:#fff;" onclick="loginWithDiscord()">
+        💬 Log in with Discord
+      </button>
+      <p style="font-size:12px; margin-top:14px;">or use an API key instead</p>
+      <input type="password" id="gate-key" placeholder="DASHBOARD_API_KEY from .env">
+      <button class="btn-ghost" style="width:100%" onclick="connectWithKey()">Connect with API Key</button>
+      <a id="gate-invite-link" href="#" target="_blank" style="display:none; margin-top:16px; font-size:12px; color:var(--text-dim);">Don't have the bot yet? Add it to a server →</a>
+    </div>
+
+    <div id="gate-step-guild" style="display:none">
+      <p style="font-size:12px; margin-bottom:10px;">Pick a server to manage:</p>
+      <div id="gate-guild-list" style="display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto;"></div>
+      <a id="gate-invite-link-2" href="#" target="_blank" class="btn-ghost" style="width:100%; display:block; text-align:center; margin-top:14px; text-decoration:none;">➕ Add FrostByte to another server</a>
+    </div>
+
+    <div class="gate-error" id="gate-error"></div>
+  </div>
+</div>
+
+<div class="sidebar">
+  <div class="brand"><span class="flake">❄️</span> Frostbyte</div>
+  <button id="server-badge" onclick="switchServer()" title="Switch server" style="width:100%; text-align:left; background:var(--panel-2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:8px 10px; font-size:12px; margin:0 0 14px; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Select a server ▾</button>
+  <div class="nav-item active" data-page="overview" onclick="showPage('overview')"><span class="ic">📊</span> Overview</div>
+  <div class="nav-item" data-page="security" onclick="showPage('security')"><span class="ic">🛡️</span> Security</div>
+  <div class="nav-item" data-page="permissions" onclick="showPage('permissions')"><span class="ic">👑</span> Permissions</div>
+  <div class="nav-item" data-page="automod" onclick="showPage('automod')"><span class="ic">🧹</span> Automod</div>
+  <div class="nav-item" data-page="shop" onclick="showPage('shop')"><span class="ic">🛒</span> Shop</div>
+  <div class="nav-item" data-page="builder" onclick="showPage('builder')"><span class="ic">🎨</span> Embed Builder</div>
+  <div class="nav-item" data-page="leaderboards" onclick="showPage('leaderboards')"><span class="ic">🏆</span> Leaderboards</div>
+  <div class="sidebar-foot">
+    <span class="conn-dot off" id="conn-dot"></span><span id="conn-text">Not connected</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- OVERVIEW -->
+  <div class="page active" id="page-overview">
+    <h1>Overview</h1>
+    <div class="subtitle">Live status of your bot</div>
+    <div class="card">
+      <div class="card-title">Bot Status <button class="btn-ghost btn-sm" onclick="loadOverview()">↻ Refresh</button></div>
+      <div class="stat-grid" id="overview-stats">
+        <div class="stat"><div class="val">—</div><div class="lbl">Loading...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECURITY -->
+  <div class="page" id="page-security">
+    <h1>Security Suite</h1>
+    <div class="subtitle">Anti-Nuke, Anti-Raid, Anti-Spam, Anti-Link, Anti-Webhook, AI Moderation</div>
+    <div class="card" id="security-card">Loading...</div>
+  </div>
+
+  <!-- PERMISSIONS -->
+  <div class="page" id="page-permissions">
+    <h1>Permissions</h1>
+    <div class="subtitle">Which Discord roles count as Admin / Staff tier</div>
+    <div class="card" id="permissions-card">Loading...</div>
+  </div>
+
+  <!-- AUTOMOD -->
+  <div class="page" id="page-automod">
+    <h1>Automod</h1>
+    <div class="subtitle">Filtered words trigger an automatic 1-minute timeout + message delete</div>
+    <div class="card">
+      <div class="card-title">Add a word</div>
+      <div class="row">
+        <input type="text" id="badword-input" placeholder="word or phrase" style="flex:1">
+        <button class="btn-primary" onclick="addBadWord()">Add</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Filtered words</div>
+      <div id="badwords-list">Loading...</div>
+    </div>
+  </div>
+
+  <!-- SHOP -->
+  <div class="page" id="page-shop">
+    <h1>Shop</h1>
+    <div class="subtitle">Items members can buy with FrostCoins</div>
+    <div class="card">
+      <div class="card-title">Add item</div>
+      <div class="row" style="margin-bottom:10px">
+        <div style="flex:1"><label class="field-label">Name</label><input type="text" id="shop-name" style="width:100%"></div>
+        <div style="width:120px"><label class="field-label">Price</label><input type="number" id="shop-price" style="width:100%"></div>
+        <div style="width:160px"><label class="field-label">Type</label>
+          <select id="shop-type" style="width:100%" onchange="renderShopTypeFields()">
+            <option value="badge">Badge (cosmetic)</option>
+            <option value="role">Role</option>
+            <option value="xpboost">XP Boost</option>
+            <option value="coinbox">Mystery Box</option>
+          </select>
+        </div>
+      </div>
+      <div id="shop-type-fields"></div>
+      <div class="field-group"><label class="field-label">Description</label><input type="text" id="shop-desc" style="width:100%"></div>
+      <button class="btn-primary" onclick="addShopItem()">Add to Shop</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Current items</div>
+      <div id="shop-list">Loading...</div>
+    </div>
+  </div>
+
+  <!-- EMBED BUILDER -->
+  <div class="page" id="page-builder">
+    <h1>Embed Builder</h1>
+    <div class="subtitle">Live preview, styled exactly like Discord — send when ready</div>
+    <div class="builder-grid">
+      <div>
+        <div class="card">
+          <div class="field-group"><label class="field-label">Title</label><input type="text" id="eb-title" style="width:100%" oninput="renderPreview()"></div>
+          <div class="field-group"><label class="field-label">Description</label><textarea id="eb-desc" rows="4" style="width:100%" oninput="renderPreview()"></textarea></div>
+          <div class="row" style="margin-bottom:14px">
+            <div style="flex:1"><label class="field-label">Color</label><input type="text" id="eb-color" value="#38bdf8" style="width:100%" oninput="renderPreview()"></div>
+            <div style="flex:1"><label class="field-label">Footer</label><input type="text" id="eb-footer" style="width:100%" oninput="renderPreview()"></div>
+          </div>
+          <div class="row" style="margin-bottom:14px">
+            <div style="flex:1"><label class="field-label">Thumbnail URL</label><input type="text" id="eb-thumb" style="width:100%" oninput="renderPreview()"></div>
+            <div style="flex:1"><label class="field-label">Image URL</label><input type="text" id="eb-image" style="width:100%" oninput="renderPreview()"></div>
+          </div>
+          <div class="card-title">Fields <button class="btn-ghost btn-sm" onclick="addFieldRow()">+ Add Field</button></div>
+          <div id="eb-fields"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Send</div>
+          <div class="row">
+            <select id="eb-channel" style="flex:1"></select>
+            <button class="btn-primary" onclick="sendEmbed()">Send to Channel</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="position:sticky; top:20px">
+          <div class="card-title">Live Preview</div>
+          <div class="discord-preview-bg"><div class="discord-embed" id="live-preview"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARDS -->
+  <div class="page" id="page-leaderboards">
+    <h1>Leaderboards</h1>
+    <div class="subtitle">Read-only snapshots of your economy, XP, and reputation</div>
+    <div class="card">
+      <div class="card-title">💰 Economy</div>
+      <table><thead><tr><th>#</th><th>User ID</th><th>Total FrostCoins</th></tr></thead><tbody id="lb-economy"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">📈 XP</div>
+      <table><thead><tr><th>#</th><th>User ID</th><th>Level</th><th>XP</th></tr></thead><tbody id="lb-xp"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-title">⭐ Reputation</div>
+      <table><thead><tr><th>#</th><th>User ID</th><th>Score</th></tr></thead><tbody id="lb-rep"></tbody></table>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+// ⚙️ Set your backend URL here once — no need to type it every visit.
+// Leave as "" to keep the manual entry screen instead.
+const HARDCODED_API_URL = "https://frostbyte.wispbyte.app";
+
+let API_URL = HARDCODED_API_URL || localStorage.getItem("frostbyte_api_url") || "";
+let SESSION_TOKEN = localStorage.getItem("frostbyte_session") || "";
+let API_KEY = localStorage.getItem("frostbyte_api_key") || "";
+let SELECTED_GUILD = JSON.parse(localStorage.getItem("frostbyte_guild") || "null"); // { id, name, icon, level }
+
+function toast(msg, isErr) {
+  const el = document.createElement("div");
+  el.className = "toast" + (isErr ? " err" : "");
+  el.textContent = msg;
+  document.getElementById("toast-wrap").appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+async function api(path, opts = {}) {
+  const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
+  if (SESSION_TOKEN) headers["Authorization"] = "Bearer " + SESSION_TOKEN;
+  else if (API_KEY) headers["X-API-Key"] = API_KEY;
+  if (SELECTED_GUILD?.id) headers["X-Guild-Id"] = SELECTED_GUILD.id;
+  const res = await fetch(API_URL + path, { ...opts, headers });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  return json;
+}
+
+async function checkBackend() {
+  const url = document.getElementById("gate-url").value.trim().replace(/\/$/, "");
+  const errEl = document.getElementById("gate-error");
+  errEl.textContent = "";
+  if (!url) { errEl.textContent = "Backend URL is required."; return; }
+  API_URL = url;
+  try {
+    const res = await fetch(API_URL + "/api/ping");
+    const ping = await res.json();
+    localStorage.setItem("frostbyte_api_url", url);
+    document.getElementById("gate-step-url").style.display = "none";
+    document.getElementById("gate-step-login").style.display = "block";
+    document.getElementById("gate-subtitle").textContent = ping.botOnline ? "Bot is online — log in to continue" : "Backend reached, but bot is offline";
+
+    const authCfg = await fetch(API_URL + "/api/auth-config").then(r => r.json()).catch(() => ({ oauthConfigured: false }));
+    if (!authCfg.oauthConfigured) {
+      document.getElementById("discord-login-btn").style.display = "none";
+      document.querySelector("#gate-step-login p").textContent = "Discord login isn't configured yet — use an API key:";
+    } else {
+      window._authCfg = authCfg;
+    }
+    if (authCfg.inviteUrl) {
+      for (const id of ["gate-invite-link", "gate-invite-link-2"]) {
+        const el = document.getElementById(id);
+        el.href = authCfg.inviteUrl;
+        el.style.display = "block";
+      }
+    }
+  } catch (e) {
+    errEl.innerHTML = `Couldn't reach: <b>${API_URL}/api/ping</b><br>Error: ${e.message}<br><br>Tap to test directly: <a href="${API_URL}/api/ping" target="_blank" style="color:var(--ice-light)">${API_URL}/api/ping</a>`;
+  }
+}
+
+function loginWithDiscord() {
+  const cfg = window._authCfg;
+  if (!cfg?.redirectUri) { toast("OAuth not configured on the backend", true); return; }
+  const params = new URLSearchParams({
+    client_id: cfg.clientId,
+    redirect_uri: cfg.redirectUri,
+    response_type: "code",
+    scope: "identify",
+  });
+  window.location.href = `https://discord.com/oauth2/authorize?${params.toString()}`;
+}
+
+async function connectWithKey() {
+  const key = document.getElementById("gate-key").value.trim();
+  const errEl = document.getElementById("gate-error");
+  if (!key) { errEl.textContent = "Enter an API key."; return; }
+  API_KEY = key;
+  try {
+    await api("/api/me");
+    localStorage.setItem("frostbyte_api_key", key);
+    enterApp({ tag: "API Key", level: "owner" });
+  } catch (e) {
+    errEl.textContent = "Invalid API key.";
+  }
+}
+
+async function enterApp(user) {
+  window._me = user;
+  document.getElementById("conn-text").textContent = `${user.tag}${user.level ? " (" + user.level + ")" : ""}`;
+
+  if (SELECTED_GUILD) {
+    // Re-verify access is still valid before jumping straight into a
+    // previously-selected server (they may have lost their role, etc).
+    try {
+      await api("/api/status");
+      document.getElementById("gate").style.display = "none";
+      setConn(true, true);
+      updateServerBadge();
+      initApp();
+      return;
+    } catch {
+      SELECTED_GUILD = null;
+      localStorage.removeItem("frostbyte_guild");
+    }
+  }
+  await showGuildPicker();
+}
+
+async function showGuildPicker() {
+  document.getElementById("gate-step-url").style.display = "none";
+  document.getElementById("gate-step-login").style.display = "none";
+  document.getElementById("gate-step-guild").style.display = "block";
+  const listEl = document.getElementById("gate-guild-list");
+  listEl.innerHTML = `<p style="font-size:12px; color:var(--text-dim)">Loading your servers…</p>`;
+  try {
+    const guilds = await api("/api/my-guilds");
+    if (!guilds.length) {
+      listEl.innerHTML = `<p style="font-size:13px;">FrostByte isn't in any server you manage yet. Add it to one below, then come back and refresh.</p>`;
+      return;
+    }
+    listEl.innerHTML = guilds.map(g => `
+      <button class="btn-ghost" style="width:100%; display:flex; align-items:center; gap:10px; text-align:left; padding:10px;" onclick='selectGuild(${JSON.stringify(g).replace(/'/g, "&apos;")})'>
+        ${g.icon ? `<img src="${g.icon}" style="width:28px; height:28px; border-radius:50%">` : `<span style="width:28px; height:28px; border-radius:50%; background:var(--panel-2); display:inline-flex; align-items:center; justify-content:center;">❄️</span>`}
+        <span style="flex:1;">${g.name}</span>
+        <span style="font-size:11px; color:var(--text-dim); text-transform:capitalize;">${g.level}</span>
+      </button>`).join("");
+  } catch (e) {
+    listEl.innerHTML = `<p style="font-size:13px; color:var(--danger)">Couldn't load your servers: ${e.message}</p>`;
+  }
+}
+
+function selectGuild(g) {
+  SELECTED_GUILD = g;
+  localStorage.setItem("frostbyte_guild", JSON.stringify(g));
+  document.getElementById("gate").style.display = "none";
+  setConn(true, true);
+  updateServerBadge();
+  initApp();
+}
+
+function updateServerBadge() {
+  const badge = document.getElementById("server-badge");
+  if (badge && SELECTED_GUILD) badge.textContent = SELECTED_GUILD.name + " ▾";
+}
+
+function switchServer() {
+  SELECTED_GUILD = null;
+  localStorage.removeItem("frostbyte_guild");
+  document.getElementById("gate").style.display = "flex";
+  showGuildPicker();
+}
+
+function setConn(connected, botOnline) {
+  const dot = document.getElementById("conn-dot");
+  if (!connected) { dot.className = "conn-dot off"; document.getElementById("conn-text").textContent = "Not connected"; return; }
+  dot.className = "conn-dot " + (botOnline ? "on" : "off");
+}
+
+function showPage(name) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+  document.getElementById("page-" + name).classList.add("active");
+  document.querySelector(`.nav-item[data-page="${name}"]`).classList.add("active");
+  const loaders = { overview: loadOverview, security: loadSecurity, permissions: loadPermissions, automod: loadAutomod, shop: loadShop, builder: loadBuilderChannels, leaderboards: loadLeaderboards };
+  if (loaders[name]) loaders[name]();
+}
+
+function initApp() {
+  showPage("overview");
+  if (document.getElementById("eb-fields").children.length === 0) renderPreview();
+}
+
+// ── Overview ──
+async function loadOverview() {
+  try {
+    const s = await api("/api/status");
+    setConn(true, true);
+    document.getElementById("overview-stats").innerHTML = `
+      <div class="stat"><div class="val">${s.guildName}</div><div class="lbl">Server</div></div>
+      <div class="stat"><div class="val">${s.memberCount}</div><div class="lbl">Members</div></div>
+      <div class="stat"><div class="val">${s.ping}ms</div><div class="lbl">Ping</div></div>
+      <div class="stat"><div class="val">${Math.floor(s.uptimeSeconds/3600)}h ${Math.floor((s.uptimeSeconds%3600)/60)}m</div><div class="lbl">Uptime</div></div>
+      <div class="stat"><div class="val">${s.commandCount}</div><div class="lbl">Slash commands</div></div>
+      <div class="stat"><div class="val" style="font-size:15px">${s.botTag}</div><div class="lbl">Bot account</div></div>
+    `;
+  } catch (e) { toast("Overview failed: " + e.message, true); setConn(true, false); }
+}
+
+// ── Security ──
+async function loadSecurity() {
+  try {
+    const s = await api("/api/security");
+    const rows = [
+      ["antiNuke", "Anti-Nuke", "Strips roles & bans anyone doing 3+ dangerous actions fast"],
+      ["antiRaid", "Anti-Raid", "Auto-locks the server on a join flood"],
+      ["antiSpam", "Anti-Spam", "Times out message flooders"],
+      ["antiLink", "Anti-Link", "Deletes unapproved links"],
+      ["antiWebhook", "Anti-Webhook", "Deletes unauthorized webhooks instantly"],
+      ["aiMod", "AI Moderation", "AI-assisted detection beyond the word filter"],
+    ];
+    document.getElementById("security-card").innerHTML = rows.map(([key, label, desc]) => `
+      <div class="toggle-row">
+        <div><div class="toggle-label">${label}</div><div class="toggle-desc">${desc}</div></div>
+        <label class="switch"><input type="checkbox" ${s[key].enabled ? "checked" : ""} onchange="toggleSecurity('${key}', this.checked)"><span class="slider"></span></label>
+      </div>`).join("");
+  } catch (e) { toast("Security load failed: " + e.message, true); }
+}
+async function toggleSecurity(key, enabled) {
+  try {
+    await api("/api/security", { method: "POST", body: JSON.stringify({ [key]: { enabled } }) });
+    toast(`${key} ${enabled ? "enabled" : "disabled"}`);
+  } catch (e) { toast("Failed: " + e.message, true); loadSecurity(); }
+}
+
+// ── Permissions ──
+async function loadPermissions() {
+  try {
+    const p = await api("/api/permissions");
+    const memberList = (role) => role?.members?.length ? role.members.map(m => `<span class="badge-tag">${m.tag}</span>`).join(" ") : '<span style="color:var(--text-dim)">None yet</span>';
+    document.getElementById("permissions-card").innerHTML = `
+      <div style="margin-bottom:20px">
+        <div class="toggle-label">👑 Admin Role</div>
+        <div class="toggle-desc">${p.adminRole ? p.adminRole.name : "Not set — use /permissions setadminrole in Discord"}</div>
+        <div style="margin-top:8px">${memberList(p.adminRole)}</div>
+      </div>
+      <div>
+        <div class="toggle-label">🛡️ Staff Role</div>
+        <div class="toggle-desc">${p.staffRole ? p.staffRole.name : "Not set — use /permissions setstaffrole in Discord"}</div>
+        <div style="margin-top:8px">${memberList(p.staffRole)}</div>
+      </div>
+      <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border)">
+        <div class="toggle-label">Owners (from .env, dashboard read-only)</div>
+        <div style="margin-top:8px">${p.owners.map(id => `<span class="badge-tag">${id}</span>`).join(" ")}</div>
+      </div>
+    `;
+  } catch (e) { toast("Permissions load failed: " + e.message, true); }
+}
+
+// ── Automod ──
+async function loadAutomod() {
+  try {
+    const a = await api("/api/automod");
+    document.getElementById("badwords-list").innerHTML = a.badWords.length
+      ? a.badWords.map(w => `<span class="word-chip">${w} <button onclick="removeBadWord('${w}')">×</button></span>`).join("")
+      : '<div class="empty-state">No words filtered yet.</div>';
+  } catch (e) { toast("Automod load failed: " + e.message, true); }
+}
+async function addBadWord() {
+  const input = document.getElementById("badword-input");
+  if (!input.value.trim()) return;
+  try { await api("/api/automod/badwords", { method: "POST", body: JSON.stringify({ word: input.value.trim() }) }); input.value = ""; loadAutomod(); toast("Word added"); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+async function removeBadWord(word) {
+  try { await api("/api/automod/badwords/" + encodeURIComponent(word), { method: "DELETE" }); loadAutomod(); toast("Word removed"); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+
+// ── Shop ──
+function renderShopTypeFields() {
+  const type = document.getElementById("shop-type").value;
+  const el = document.getElementById("shop-type-fields");
+  if (type === "role") el.innerHTML = `<div class="field-group"><label class="field-label">Role ID</label><input type="text" id="shop-roleid" style="width:100%" placeholder="paste role ID"></div>`;
+  else if (type === "xpboost") el.innerHTML = `<div class="field-group"><label class="field-label">Duration (minutes)</label><input type="number" id="shop-duration" style="width:100%" value="60"></div>`;
+  else if (type === "coinbox") el.innerHTML = `<div class="row"><div style="flex:1"><label class="field-label">Min payout</label><input type="number" id="shop-min" style="width:100%" value="10"></div><div style="flex:1"><label class="field-label">Max payout</label><input type="number" id="shop-max" style="width:100%" value="100"></div></div>`;
+  else el.innerHTML = "";
+}
+renderShopTypeFields();
+
+async function loadShop() {
+  try {
+    const items = await api("/api/shop");
+    const entries = Object.entries(items);
+    document.getElementById("shop-list").innerHTML = entries.length ? `
+      <table><thead><tr><th>Name</th><th>Type</th><th>Price</th><th>Stock</th><th></th></tr></thead><tbody>
+      ${entries.map(([id, it]) => `<tr><td>${it.name}</td><td>${it.type}</td><td>${it.price} 🪙</td><td>${it.stock >= 0 ? it.stock : "∞"}</td><td><button class="btn-danger btn-sm" onclick="removeShopItem('${id}')">Remove</button></td></tr>`).join("")}
+      </tbody></table>` : '<div class="empty-state">No items yet — add one above.</div>';
+  } catch (e) { toast("Shop load failed: " + e.message, true); }
+}
+async function addShopItem() {
+  const body = {
+    name: document.getElementById("shop-name").value.trim(),
+    price: parseInt(document.getElementById("shop-price").value),
+    type: document.getElementById("shop-type").value,
+    description: document.getElementById("shop-desc").value.trim(),
+  };
+  if (body.type === "role") body.roleId = document.getElementById("shop-roleid")?.value.trim();
+  if (body.type === "xpboost") body.durationMinutes = parseInt(document.getElementById("shop-duration")?.value || "60");
+  if (body.type === "coinbox") { body.min = parseInt(document.getElementById("shop-min")?.value || "10"); body.max = parseInt(document.getElementById("shop-max")?.value || "100"); }
+  if (!body.name || !body.price) return toast("Name and price are required", true);
+  try { await api("/api/shop", { method: "POST", body: JSON.stringify(body) }); toast("Item added"); loadShop(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+async function removeShopItem(id) {
+  try { await api("/api/shop/" + id, { method: "DELETE" }); loadShop(); toast("Removed"); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+
+// ── Embed Builder ──
+let fieldCount = 0;
+function addFieldRow() {
+  fieldCount++;
+  const id = "field-" + fieldCount;
+  const div = document.createElement("div");
+  div.className = "row";
+  div.style = "margin-bottom:8px";
+  div.id = id;
+  div.innerHTML = `
+    <input type="text" placeholder="Field name" style="flex:1" oninput="renderPreview()" class="f-name">
+    <input type="text" placeholder="Field value" style="flex:2" oninput="renderPreview()" class="f-value">
+    <button class="btn-ghost btn-sm" onclick="document.getElementById('${id}').remove(); renderPreview();">✕</button>
+  `;
+  document.getElementById("eb-fields").appendChild(div);
+}
+
+function renderPreview() {
+  const title = document.getElementById("eb-title").value;
+  const desc = document.getElementById("eb-desc").value;
+  const color = document.getElementById("eb-color").value || "#38bdf8";
+  const footer = document.getElementById("eb-footer").value;
+  const thumb = document.getElementById("eb-thumb").value;
+  const image = document.getElementById("eb-image").value;
+  const fields = [...document.querySelectorAll("#eb-fields .row")].map(r => ({
+    name: r.querySelector(".f-name").value, value: r.querySelector(".f-value").value,
+  })).filter(f => f.name || f.value);
+
+  const el = document.getElementById("live-preview");
+  el.style.borderLeftColor = color;
+  el.innerHTML = `
+    ${thumb ? `<img class="d-thumb" src="${thumb}" onerror="this.style.display='none'">` : ""}
+    ${title ? `<div class="d-title">${escapeHtml(title)}</div>` : ""}
+    ${desc ? `<div class="d-desc">${escapeHtml(desc)}</div>` : ""}
+    ${fields.map(f => `<div class="d-field"><div class="d-field-name">${escapeHtml(f.name)}</div><div class="d-field-value">${escapeHtml(f.value)}</div></div>`).join("")}
+    ${image ? `<img class="d-image" src="${image}" onerror="this.style.display='none'">` : ""}
+    ${footer ? `<div class="d-footer">${escapeHtml(footer)}</div>` : ""}
+  `;
+}
+function escapeHtml(s) { return (s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+async function loadBuilderChannels() {
+  try {
+    const channels = await api("/api/channels");
+    document.getElementById("eb-channel").innerHTML = channels.map(c => `<option value="${c.id}">#${c.name}</option>`).join("");
+  } catch (e) { toast("Couldn't load channels: " + e.message, true); }
+}
+async function sendEmbed() {
+  const fields = [...document.querySelectorAll("#eb-fields .row")].map(r => ({
+    name: r.querySelector(".f-name").value, value: r.querySelector(".f-value").value,
+  })).filter(f => f.name && f.value);
+  const body = {
+    channelId: document.getElementById("eb-channel").value,
+    title: document.getElementById("eb-title").value,
+    description: document.getElementById("eb-desc").value,
+    color: document.getElementById("eb-color").value,
+    footer: document.getElementById("eb-footer").value,
+    thumbnail: document.getElementById("eb-thumb").value,
+    image: document.getElementById("eb-image").value,
+    fields,
+  };
+  try { await api("/api/embed/send", { method: "POST", body: JSON.stringify(body) }); toast("✅ Embed sent!"); }
+  catch (e) { toast("Send failed: " + e.message, true); }
+}
+
+// ── Leaderboards ──
+async function loadLeaderboards() {
+  try {
+    const [econ, xp, rep] = await Promise.all([api("/api/economy/leaderboard"), api("/api/economy/levels"), api("/api/reputation/leaderboard")]);
+    document.getElementById("lb-economy").innerHTML = econ.map((e, i) => `<tr><td>${i+1}</td><td class="mono">${e.id}</td><td>${e.total} 🪙</td></tr>`).join("") || `<tr><td colspan="3" class="empty-state">No data yet</td></tr>`;
+    document.getElementById("lb-xp").innerHTML = xp.map((e, i) => `<tr><td>${i+1}</td><td class="mono">${e.id}</td><td>${e.level}</td><td>${e.xp}</td></tr>`).join("") || `<tr><td colspan="4" class="empty-state">No data yet</td></tr>`;
+    document.getElementById("lb-rep").innerHTML = rep.map((e, i) => `<tr><td>${i+1}</td><td class="mono">${e.id}</td><td>${e.score} ⭐</td></tr>`).join("") || `<tr><td colspan="3" class="empty-state">No data yet</td></tr>`;
+  } catch (e) { toast("Leaderboards load failed: " + e.message, true); }
+}
+
+// ── On page load: handle OAuth redirect, saved session, or saved API key ──
+(async function bootstrap() {
+  if (document.getElementById("gate-current-url")) document.getElementById("gate-current-url").textContent = API_URL || "(no URL set)";
+  if (HARDCODED_API_URL) document.getElementById("gate-step-url").style.display = "none"; // never show the URL box at all
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const tokenFromRedirect = urlParams.get("token");
+
+  if (tokenFromRedirect && API_URL) {
+    SESSION_TOKEN = tokenFromRedirect;
+    localStorage.setItem("frostbyte_session", tokenFromRedirect);
+    window.history.replaceState({}, "", window.location.pathname); // strip ?token= from the URL bar
+  }
+
+  if (!API_URL) return; // first visit — user needs to enter backend URL manually
+
+  document.getElementById("gate-url").value = API_URL;
+  if (SESSION_TOKEN || API_KEY) {
+    try {
+      const me = await api("/api/me");
+      enterApp(me);
+    } catch {
+      SESSION_TOKEN = ""; API_KEY = "";
+      localStorage.removeItem("frostbyte_session"); localStorage.removeItem("frostbyte_api_key");
+      checkBackend();
+    }
+  } else {
+    checkBackend();
+  }
+})();
+</script>
+</body>
+</html>

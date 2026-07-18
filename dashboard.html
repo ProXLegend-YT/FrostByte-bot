@@ -1,0 +1,2148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frostbyte — Control Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #060d16;
+    --panel: #0d1826;
+    --panel-2: #101f30;
+    --border: #1b2e42;
+    --border-hover: #2a4a63;
+    --ice: #38bdf8;
+    --ice-light: #7dd3fc;
+    --cyan: #22d3ee;
+    --navy-deep: #0c4a6e;
+    --text: #e8f3fb;
+    --text-muted: #7d97ab;
+    --text-dim: #4d647a;
+    --danger: #f87171;
+    --success: #4ade80;
+    --warn: #fbbf24;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background:
+      radial-gradient(ellipse 1200px 800px at 15% -10%, #0d2438 0%, var(--bg) 55%),
+      radial-gradient(ellipse 900px 700px at 100% 100%, #0a1f30 0%, transparent 60%);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: 'Manrope', -apple-system, sans-serif;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    position: relative;
+    overflow-x: hidden;
+  }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  /* ── Ambient background fx ── */
+  .bg-fx { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .bg-fx .grid {
+    position: absolute; inset: -2px;
+    background-image:
+      linear-gradient(rgba(56,189,248,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56,189,248,0.035) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: radial-gradient(ellipse 80% 60% at 20% 0%, #000 0%, transparent 70%);
+  }
+  .bg-fx .orb { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.35; }
+  .bg-fx .orb1 { width: 480px; height: 480px; top: -140px; left: -100px; background: radial-gradient(circle, var(--ice) 0%, transparent 70%); }
+  .bg-fx .orb2 { width: 420px; height: 420px; bottom: -160px; right: -80px; background: radial-gradient(circle, var(--cyan) 0%, transparent 70%); opacity: 0.18; }
+
+  /* ── Mobile topbar ── */
+  .topbar {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: rgba(6, 13, 22, 0.85);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar .brand { padding: 0; }
+  .hamburger {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+    cursor: pointer;
+  }
+  .hamburger span { display: block; width: 18px; height: 2px; background: var(--ice-light); border-radius: 2px; transition: transform 0.2s, opacity 0.2s; }
+  .hamburger.open span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+  .hamburger.open span:nth-child(2) { opacity: 0; }
+  .hamburger.open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+  .sidebar-scrim {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 12, 0.6);
+    backdrop-filter: blur(2px);
+    z-index: 65;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  .sidebar-scrim.show { display: block; opacity: 1; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 252px;
+    flex-shrink: 0;
+    background: rgba(9, 17, 27, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-right: 1px solid var(--border);
+    padding: 22px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    height: 100dvh;
+    z-index: 70;
+    overflow-y: auto;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 10px 24px;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    text-decoration: none;
+    transition: opacity 0.15s ease;
+  }
+  a.brand:hover { opacity: 0.8; }
+  .brand .flake { font-size: 22px; filter: drop-shadow(0 0 8px rgba(56,189,248,0.6)); }
+  .nav-section-lbl {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-dim); padding: 18px 12px 8px;
+    border-top: 1px solid var(--border);
+    margin-top: 6px;
+  }
+  .nav-section-lbl::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--ice); box-shadow: 0 0 6px var(--ice); flex-shrink: 0; }
+  .nav-section-lbl:first-child { padding-top: 4px; margin-top: 0; border-top: none; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 13.5px;
+    font-weight: 600;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
+    user-select: none;
+    position: relative;
+  }
+  .nav-item:hover { background: rgba(56,189,248,0.07); color: var(--text); transform: translateX(2px); }
+  .nav-item:active { transform: scale(0.98); }
+  .nav-item.active {
+    background: linear-gradient(90deg, rgba(56,189,248,0.18), rgba(56,189,248,0.03) 80%);
+    color: var(--ice-light);
+    box-shadow: inset 2px 0 0 var(--ice);
+  }
+  .nav-item.active .ic { background: rgba(56,189,248,0.22); border-color: rgba(56,189,248,0.5); box-shadow: 0 0 10px -2px rgba(56,189,248,0.6); }
+  .nav-item .ic {
+    width: 28px; height: 28px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px; font-size: 14px;
+    background: rgba(255,255,255,0.03); border: 1px solid transparent;
+    transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .sidebar-foot { margin-top: auto; padding: 10px; font-size: 11px; color: var(--text-dim); }
+  .conn-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .conn-dot.on { background: var(--success); box-shadow: 0 0 6px var(--success); }
+  .conn-dot.off { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+
+  /* ── Main ── */
+  .main { flex: 1; padding: 32px 40px 80px; max-width: 1180px; position: relative; z-index: 1; width: 100%; min-width: 0; }
+  .page { display: none; animation: fadein 0.3s ease; }
+  .page.active { display: block; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  @media (max-width: 880px) {
+    body { flex-direction: column; }
+    .topbar { display: flex; }
+    .sidebar {
+      position: fixed;
+      left: 0; top: 0;
+      transform: translateX(-104%);
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 20px 0 50px rgba(0,0,0,0.5);
+      width: 78vw;
+      max-width: 300px;
+    }
+    .sidebar.open { transform: translateX(0); }
+    .main { padding: 20px 16px 90px; max-width: 100%; }
+    h1 { font-size: 22px; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .card { padding: 16px; }
+
+    /* Perf: backdrop-filter blur + big blurred orbs + endless animations are
+       genuinely heavy for mobile GPUs and are what was causing the lag —
+       not the file size. Dial them down on small screens instead. */
+    .bg-fx .orb { filter: blur(40px); }
+    .bg-fx { opacity: 0.6; }
+    .sidebar, .sidebar-scrim, .topbar {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+    .sidebar { background: rgba(9, 17, 27, 0.97); }
+    .sidebar-scrim { background: rgba(2, 6, 12, 0.75); }
+    .topbar { background: rgba(6, 13, 22, 0.97); }
+    .bg-fx .scanline { animation: none !important; display: none; }
+    .card::before { animation: none !important; }
+  }
+  @media (max-width: 480px) {
+    .stat-grid { grid-template-columns: 1fr 1fr !important; gap: 10px; }
+    .stat .val { font-size: 19px; }
+  }
+
+  h1 { font-size: 27px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--text) 30%, var(--ice-light)); -webkit-background-clip: text; background-clip: text; }
+  .subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 28px; }
+
+  .card {
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin-bottom: 18px;
+    position: relative;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .card:hover { border-color: var(--border-hover); }
+  .card-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ice-light); margin: 0 0 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+
+  /* ── Welcome screen (shown once, right after picking/adding a server) ── */
+  .welcome-hero {
+    position: relative; overflow: hidden;
+    border-radius: var(--radius); border: 1px solid var(--border);
+    padding: 32px 26px; margin-bottom: 22px;
+    background: var(--panel);
+  }
+  .welcome-hero::before {
+    content: ""; position: absolute; top: -40%; right: -15%; width: 380px; height: 380px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(56,189,248,0.35), transparent 70%);
+    filter: blur(10px); pointer-events: none;
+  }
+  .welcome-hero h1 { font-size: clamp(1.6rem, 5vw, 2.2rem); margin: 0 0 8px; position: relative; line-height: 1.2; }
+  .welcome-hero .name { color: var(--ice-light); }
+  .welcome-hero p { color: var(--text-muted); font-size: 14.5px; margin: 0; position: relative; max-width: 480px; }
+  .shortcut-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+  .shortcut-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px; cursor: pointer; text-align: left;
+    transition: border-color 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease;
+  }
+  .shortcut-card:hover { border-color: var(--ice); transform: translateY(-3px); box-shadow: 0 10px 26px -14px rgba(56,189,248,0.5); }
+  .shortcut-card:active { transform: translateY(-1px) scale(0.99); }
+  .shortcut-card .ic {
+    width: 38px; height: 38px; border-radius: 10px; margin-bottom: 12px;
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+    background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.25);
+  }
+  .shortcut-card h3 { font-size: 15px; margin: 0 0 6px; }
+  .shortcut-card p { font-size: 12.5px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; }
+  .stat { background: rgba(56,189,248,0.04); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; transition: border-color 0.2s, transform 0.15s; }
+  .stat:hover { border-color: var(--border-hover); transform: translateY(-1px); }
+  .stat .val { font-size: 24px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; color: var(--text); overflow-wrap: anywhere; }
+  .stat .lbl { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── Section switcher tabs (for consolidated pages) ── */
+  .subtabs { display: flex; gap: 6px; margin-bottom: 18px; overflow-x: auto; padding-bottom: 2px; }
+  .subtab { flex-shrink: 0; padding: 8px 14px; border-radius: 20px; font-size: 12.5px; font-weight: 700; color: var(--text-muted); border: 1px solid var(--border); cursor: pointer; background: var(--panel); white-space: nowrap; transition: all 0.15s; }
+  .subtab:hover { color: var(--text); border-color: var(--border-hover); }
+  .subtab.active { color: #04141f; background: linear-gradient(135deg, var(--ice), var(--cyan)); border-color: transparent; box-shadow: 0 0 16px -4px var(--ice); }
+  .subpanel { display: none; }
+  .subpanel.active { display: block; animation: fadein 0.25s ease; }
+
+  /* ── Logs feed ── */
+  .log-filters { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  .log-feed { display: flex; flex-direction: column; gap: 2px; max-height: 70vh; overflow-y: auto; }
+  .log-entry {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 11px 12px; border-radius: 8px; font-size: 13px;
+    border-left: 2px solid transparent;
+    transition: background 0.15s;
+  }
+  .log-entry:hover { background: rgba(56,189,248,0.04); }
+  .log-entry .log-icon { font-size: 15px; flex-shrink: 0; width: 22px; text-align: center; margin-top: 1px; }
+  .log-entry .log-body { flex: 1; min-width: 0; }
+  .log-entry .log-summary { color: var(--text); line-height: 1.5; overflow-wrap: anywhere; }
+  .log-entry .log-summary b { color: var(--ice-light); font-weight: 700; }
+  .log-entry .log-meta { color: var(--text-dim); font-size: 11px; margin-top: 3px; font-family: 'IBM Plex Mono', monospace; }
+  .log-entry.cat-moderation { border-left-color: var(--danger); }
+  .log-entry.cat-security { border-left-color: var(--warn); }
+  .log-entry.cat-member { border-left-color: var(--success); }
+  .log-entry.cat-message { border-left-color: var(--text-dim); }
+  .log-entry.cat-config { border-left-color: var(--ice); }
+  .log-entry.cat-server { border-left-color: var(--cyan); }
+
+  .live-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--success); display: inline-block; position: relative; }
+  .live-pulse::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 1.5px solid var(--success); animation: pulse 1.8s ease-out infinite; }
+  @keyframes pulse { 0% { transform: scale(0.6); opacity: 0.8; } 100% { transform: scale(1.8); opacity: 0; } }
+
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .row.between { justify-content: space-between; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-label { font-size: 14px; font-weight: 600; }
+  .toggle-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .switch { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; inset: 0; background: #1e2f42; border-radius: 24px; transition: 0.2s; }
+  .slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; top: 3px; background: #64748b; border-radius: 50%; transition: 0.2s; }
+  input:checked + .slider { background: rgba(56,189,248,0.25); }
+  input:checked + .slider:before { background: var(--ice); transform: translateX(18px); box-shadow: 0 0 8px var(--ice); }
+
+  input[type=text], input[type=number], input[type=password], input[type=url], select, textarea {
+    background: #0a1622;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 12px;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--ice); }
+  textarea { resize: vertical; }
+  label.field-label { font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; display: block; }
+
+  button {
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 13px;
+    border: none;
+    border-radius: 7px;
+    padding: 9px 16px;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.15s, box-shadow 0.2s;
+    min-height: 38px;
+  }
+  button:active { transform: scale(0.97); }
+  .btn-primary { background: linear-gradient(135deg, var(--ice), var(--cyan)); color: #04141f; box-shadow: 0 4px 18px -6px rgba(56,189,248,0.5); }
+  .btn-primary:hover { opacity: 0.92; box-shadow: 0 4px 22px -4px rgba(56,189,248,0.7); }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+  .btn-ghost:hover { color: var(--text); border-color: var(--ice); }
+  .btn-danger { background: rgba(248,113,113,0.12); color: var(--danger); border: 1px solid rgba(248,113,113,0.3); }
+  .btn-danger:hover { background: rgba(248,113,113,0.2); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; min-height: 30px; }
+  @media (max-width: 880px) {
+    input[type=text], input[type=number], input[type=password], input[type=url], select, textarea { width: 100% !important; }
+    .row > div { width: 100% !important; }
+    .row { flex-direction: column; align-items: stretch; }
+    .row.keep-inline { flex-direction: row; align-items: center; }
+  }
+
+  .pill { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .pill.on { background: rgba(74,222,128,0.15); color: var(--success); }
+  .pill.off { background: rgba(125,151,171,0.15); color: var(--text-muted); }
+
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 420px; }
+  th { text-align: left; color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 10px; border-bottom: 1px solid rgba(27,46,66,0.5); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(56,189,248,0.03); }
+  .empty-state { text-align: center; padding: 30px 20px; color: var(--text-dim); font-size: 13px; }
+
+  .badge-tag { background: rgba(56,189,248,0.1); color: var(--ice-light); padding: 2px 8px; border-radius: 5px; font-size: 11px; font-family: 'IBM Plex Mono', monospace; }
+  .word-chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25); color: #fca5a5; padding: 4px 10px; border-radius: 20px; font-size: 12px; margin: 3px; }
+  .word-chip button { background: none; border: none; color: #fca5a5; font-size: 14px; padding: 0; cursor: pointer; line-height: 1; }
+
+  /* ── Login Gate ── */
+  .gate {
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 900px 600px at 50% 0%, #0d2438 0%, var(--bg) 60%);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; padding: 20px; overflow-y: auto;
+  }
+  .gate-card { width: 380px; max-width: 100%; text-align: center; box-shadow: 0 20px 60px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(56,189,248,0.05); }
+  .gate-card .flake { font-size: 40px; margin-bottom: 10px; filter: drop-shadow(0 0 14px rgba(56,189,248,0.7)); animation: float 3.5s ease-in-out infinite; }
+  @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  .gate-card h2 { margin: 0 0 6px; font-size: 20px; }
+  .gate-card p { color: var(--text-muted); font-size: 13px; margin: 0 0 22px; }
+  .gate-card input { width: 100%; margin-bottom: 10px; }
+  .gate-card button { width: 100%; padding: 11px; }
+  .gate-error { color: var(--danger); font-size: 12px; margin-top: 10px; min-height: 16px; }
+
+  /* ── Holographic bot showcase (login screen) ──
+     A projected-light "readout" of the bot's live stats, built from the same
+     ice/frost + scanline language as the rest of the dashboard rather than a
+     generic stat-card. The ring is the signature element: a slowly rotating
+     conic-gradient halo standing in for a holographic projection field. */
+  .holo { position: relative; width: 168px; height: 168px; margin: 4px auto 6px; display: flex; align-items: center; justify-content: center; }
+  .holo-ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent 0%, rgba(56,189,248,0.55) 15%, transparent 30%, transparent 55%, rgba(125,211,252,0.4) 70%, transparent 85%);
+    animation: holoSpin 6s linear infinite;
+    -webkit-mask: radial-gradient(circle, transparent 62%, #000 63%, #000 100%);
+            mask: radial-gradient(circle, transparent 62%, #000 63%, #000 100%);
+  }
+  .holo-ring::after {
+    content: ""; position: absolute; inset: 10px; border-radius: 50%;
+    border: 1px dashed rgba(56,189,248,0.25);
+  }
+  @keyframes holoSpin { to { transform: rotate(360deg); } }
+  .holo-core {
+    position: relative; width: 128px; height: 128px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 40%, rgba(56,189,248,0.14), rgba(13,24,38,0.4) 70%);
+    border: 1px solid rgba(56,189,248,0.3);
+    box-shadow: 0 0 30px -4px rgba(56,189,248,0.45), inset 0 0 20px rgba(56,189,248,0.08);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  }
+  .holo-flake { font-size: 26px; filter: drop-shadow(0 0 10px rgba(125,211,252,0.8)); animation: float 3.5s ease-in-out infinite; }
+  .holo-stats { display: flex; gap: 10px; margin-top: 4px; }
+  .holo-stat { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
+  .holo-stat-val { font-size: 13px; font-weight: 700; color: var(--ice-light); font-variant-numeric: tabular-nums; }
+  .holo-stat-label { font-size: 8px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); }
+  .holo-scan {
+    position: absolute; left: 8%; right: 8%; height: 2px; top: 50%;
+    background: linear-gradient(90deg, transparent, rgba(125,211,252,0.9), transparent);
+    filter: blur(0.5px);
+    animation: holoScanMove 2.6s ease-in-out infinite;
+  }
+  @keyframes holoScanMove {
+    0%, 100% { transform: translateY(-46px); opacity: 0; }
+    15% { opacity: 1; }
+    50% { transform: translateY(46px); opacity: 1; }
+    85% { opacity: 0; }
+  }
+
+  .holo-feature-track {
+    display: flex; gap: 8px; overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  }
+  .holo-feature-track { animation: holoTrackScroll 16s linear infinite; width: max-content; }
+  .holo-chip {
+    flex: 0 0 auto; font-size: 11px; white-space: nowrap; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--border); background: rgba(16,31,48,0.6); color: var(--text-muted);
+  }
+  @keyframes holoTrackScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) {
+    .holo-ring, .holo-scan, .holo-feature-track, .holo-flake { animation: none; }
+  }
+
+  /* ── Embed Builder Preview ── */
+  .builder-grid { display: grid; grid-template-columns: 1fr 380px; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .builder-grid { grid-template-columns: 1fr; } }
+  .field-group { margin-bottom: 14px; }
+  .discord-preview-bg { background: #313338; border-radius: 8px; padding: 16px; font-family: 'gg sans', 'Manrope', sans-serif; }
+  .discord-embed { border-left: 4px solid var(--ice); background: #2b2d31; border-radius: 4px; padding: 10px 14px 14px; max-width: 100%; }
+  .discord-embed .d-title { color: #fff; font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+  .discord-embed .d-desc { color: #dbdee1; font-size: 13.5px; line-height: 1.4; white-space: pre-wrap; }
+  .discord-embed .d-field { margin-top: 10px; }
+  .discord-embed .d-field-name { color: #fff; font-weight: 700; font-size: 12.5px; }
+  .discord-embed .d-field-value { color: #dbdee1; font-size: 12.5px; }
+  .discord-embed .d-footer { color: #949ba4; font-size: 11.5px; margin-top: 10px; }
+  .discord-embed img.d-image { max-width: 100%; border-radius: 4px; margin-top: 10px; }
+  .discord-embed img.d-thumb { float: right; width: 80px; height: 80px; border-radius: 4px; object-fit: cover; }
+
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+  .toast-wrap { position: fixed; bottom: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+  .toast { background: var(--panel-2); border: 1px solid var(--border); border-left: 3px solid var(--ice); padding: 12px 16px; border-radius: 8px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); animation: slidein 0.2s ease; }
+  .toast.err { border-left-color: var(--danger); }
+  @keyframes slidein { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }  /* ══════════════════════════════════════════════
+     FUTURISTIC ENHANCEMENTS
+  ══════════════════════════════════════════════ */
+
+  /* Animated scanline sweep across the whole viewport */
+  .bg-fx .scanline {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 0%, rgba(56,189,248,0.05) 50%, transparent 100%);
+    height: 220px;
+    animation: scanSweep 9s linear infinite;
+    opacity: 0.6;
+  }
+  @keyframes scanSweep {
+    0%   { transform: translateY(-260px); }
+    100% { transform: translateY(110vh); }
+  }
+
+  /* Glowing animated top-edge on cards — sci-fi HUD accent */
+  .card { overflow: hidden; }
+  .card::before {
+    content: "";
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--ice), var(--cyan), transparent);
+    background-size: 200% 100%;
+    opacity: 0.55;
+    animation: edgeGlow 5s ease-in-out infinite;
+  }
+  @keyframes edgeGlow {
+    0%, 100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
+  }
+  .card:hover { box-shadow: 0 0 0 1px var(--border-hover), 0 12px 32px -14px rgba(56,189,248,0.35); }
+
+  /* HUD corner brackets on cards */
+  .card::after {
+    content: "";
+    position: absolute; top: 6px; right: 6px; width: 12px; height: 12px;
+    border-top: 2px solid rgba(125,211,252,0.5); border-right: 2px solid rgba(125,211,252,0.5);
+    opacity: 0.7; pointer-events: none;
+  }
+
+  /* Live pulse indicator — use <span class="live-dot"></span> */
+  .live-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 0 0 rgba(74,222,128,0.6);
+    animation: livePulse 1.8s ease-out infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .live-dot.warn { background: var(--warn); box-shadow: 0 0 0 0 rgba(251,191,36,0.6); }
+  .live-dot.off  { background: var(--text-dim); animation: none; box-shadow: none; }
+  @keyframes livePulse {
+    0%   { box-shadow: 0 0 0 0 rgba(74,222,128,0.55); }
+    70%  { box-shadow: 0 0 0 8px rgba(74,222,128,0); }
+    100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+  }
+
+  /* Glassy stat tiles with glow-on-hover, used across control panels */
+  .hud-tile {
+    background: rgba(56,189,248,0.05);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    min-width: 120px;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .hud-tile:hover { border-color: var(--ice); transform: translateY(-2px); }
+  .hud-tile .hud-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 4px; }
+  .hud-tile .hud-value { font-family: 'IBM Plex Mono', monospace; font-size: 19px; font-weight: 600; color: var(--ice-light); }
+
+  /* Sidebar brand glow */
+  .brand { position: relative; }
+  .brand::after {
+    content: ""; position: absolute; left: 14px; right: 14px; bottom: -10px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--ice), transparent);
+    opacity: 0.4;
+  }
+
+  /* Buttons: subtle animated sheen sweep on hover */
+  .btn-primary { position: relative; overflow: hidden; }
+  .btn-primary::before {
+    content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.35), transparent);
+    transform: skewX(-20deg);
+    transition: left 0.5s ease;
+  }
+  .btn-primary:hover::before { left: 130%; }
+
+  /* Section dividers with a subtle glow, for grouping dashboard controls */
+  .hud-divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border-hover), transparent); margin: 18px 0; }
+
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate">
+  <div class="gate-card card">
+    <div class="flake">❄️</div>
+    <h2>Frostbyte Control Panel</h2>
+    <p id="gate-subtitle">Connect to your bot's backend first</p>
+    <p style="font-size:11px; color:var(--text-dim); margin-top:-14px; margin-bottom:18px; word-break:break-all;">Using: <span id="gate-current-url"></span></p>
+
+    <div id="gate-step-url">
+      <label class="field-label" style="text-align:left">Backend URL</label>
+      <input type="text" id="gate-url" placeholder="http://your-bot-host:port">
+      <button class="btn-primary" onclick="checkBackend()">Continue</button>
+    </div>
+
+    <div id="gate-step-login" style="display:none">
+      <div id="holo" class="holo">
+        <div class="holo-ring"></div>
+        <div class="holo-core">
+          <div class="holo-flake">❄️</div>
+          <div class="holo-stats" id="holo-stats">
+            <div class="holo-stat"><span class="holo-stat-val" id="holo-stat-servers">—</span><span class="holo-stat-label">servers</span></div>
+            <div class="holo-stat"><span class="holo-stat-val" id="holo-stat-members">—</span><span class="holo-stat-label">members</span></div>
+            <div class="holo-stat"><span class="holo-stat-val">78</span><span class="holo-stat-label">commands</span></div>
+          </div>
+        </div>
+        <div class="holo-scan"></div>
+      </div>
+      <div class="holo-feature-track" id="holo-features">
+        <span class="holo-chip">💰 Economy &amp; shops</span>
+        <span class="holo-chip">🛡️ Moderation &amp; anti-nuke</span>
+        <span class="holo-chip">🎫 Tickets</span>
+        <span class="holo-chip">🤖 AI chat &amp; translation</span>
+        <span class="holo-chip">🎉 Giveaways &amp; events</span>
+        <span class="holo-chip">🎮 Games &amp; leaderboards</span>
+        <span class="holo-chip">📨 Invite tracking</span>
+        <span class="holo-chip">🔒 Verification</span>
+        <span class="holo-chip" aria-hidden="true">💰 Economy &amp; shops</span>
+        <span class="holo-chip" aria-hidden="true">🛡️ Moderation &amp; anti-nuke</span>
+        <span class="holo-chip" aria-hidden="true">🎫 Tickets</span>
+        <span class="holo-chip" aria-hidden="true">🤖 AI chat &amp; translation</span>
+        <span class="holo-chip" aria-hidden="true">🎉 Giveaways &amp; events</span>
+        <span class="holo-chip" aria-hidden="true">🎮 Games &amp; leaderboards</span>
+        <span class="holo-chip" aria-hidden="true">📨 Invite tracking</span>
+        <span class="holo-chip" aria-hidden="true">🔒 Verification</span>
+      </div>
+
+      <button class="btn-primary" id="discord-login-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; background:#5865F2; color:#fff; margin-top:18px;" onclick="loginWithDiscord()">
+        💬 Log in with Discord
+      </button>
+      <p style="font-size:11px; margin-top:10px; color:var(--text-dim);">You'll pick which of your servers to manage after logging in.</p>
+
+      <div id="gate-key-toggle" style="margin-top:18px;">
+        <button type="button" onclick="document.getElementById('gate-key-panel').style.display='block'; this.style.display='none';"
+                style="width:auto; background:none; border:none; color:var(--text-dim); font-size:11px; text-decoration:underline; cursor:pointer; padding:0;">
+          Bot owner? Use an API key instead
+        </button>
+      </div>
+      <div id="gate-key-panel" style="display:none; margin-top:10px;">
+        <input type="password" id="gate-key" placeholder="DASHBOARD_API_KEY from .env">
+        <button class="btn-ghost" style="width:100%" onclick="connectWithKey()">Connect with API Key</button>
+      </div>
+      <a id="gate-invite-link" href="#" target="_blank" style="display:none; margin-top:16px; font-size:12px; color:var(--text-dim);">Don't have the bot yet? Add it to a server →</a>
+    </div>
+
+    <div id="gate-step-guild" style="display:none">
+      <p style="font-size:12px; margin-bottom:10px;">Pick a server to manage:</p>
+      <div id="gate-guild-list" style="display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto;"></div>
+      <a id="gate-invite-link-2" href="#" target="_blank"
+         style="display:none; width:100%; box-sizing:border-box; text-align:center; margin-top:16px; padding:11px; border-radius:10px; text-decoration:none; font-weight:600; background:#5865F2; color:#fff;">
+        ➕ Add FrostByte to your server
+      </a>
+      <button class="btn-ghost" id="gate-refresh-btn" style="width:100%; margin-top:8px; display:none;" onclick="showGuildPicker()">
+        🔄 I've added it — check again
+      </button>
+    </div>
+
+    <div class="gate-error" id="gate-error"></div>
+  </div>
+</div>
+
+<div class="bg-fx"><div class="grid"></div><div class="orb orb1"></div><div class="orb orb2"></div><div class="scanline"></div></div>
+
+<div class="topbar">
+  <a href="landing.html" class="brand"><span class="flake">❄️</span> Frostbyte</a>
+  <div class="hamburger" id="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></div>
+</div>
+<div class="sidebar-scrim" id="sidebar-scrim" onclick="toggleSidebar(false)"></div>
+
+<div class="sidebar" id="sidebar">
+  <a href="landing.html" class="brand"><span class="flake">❄️</span> Frostbyte</a>
+  <button id="server-badge" onclick="switchServer()" title="Switch server" style="width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; text-align:left; background:var(--panel-2); border:1px solid var(--border); color:var(--text); border-radius:10px; padding:9px 11px; font-size:12.5px; font-weight:600; margin:2px 0 14px; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; transition:border-color 0.15s ease, background 0.15s ease;" onmouseover="this.style.borderColor='var(--border-hover)'" onmouseout="this.style.borderColor='var(--border)'">
+    <span id="server-badge-name" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Select a server</span>
+    <span style="color:var(--text-dim); flex-shrink:0;">▾</span>
+  </button>
+
+  <div class="nav-section-lbl">Dashboard</div>
+  <div class="nav-item active" data-page="overview" onclick="showPage('overview')"><span class="ic">📊</span> Overview</div>
+  <div class="nav-item" data-page="logs" onclick="showPage('logs')"><span class="ic">📜</span> Logs</div>
+
+  <div class="nav-section-lbl">Moderation</div>
+  <div class="nav-item" data-page="security" onclick="showPage('security')"><span class="ic">🛡️</span> Security</div>
+  <div class="nav-item" data-page="permissions" onclick="showPage('permissions')"><span class="ic">👑</span> Permissions</div>
+  <div class="nav-item" data-page="automod" onclick="showPage('automod')"><span class="ic">🧹</span> Automod</div>
+  <div class="nav-item" data-page="tickets" onclick="showPage('tickets')"><span class="ic">🎫</span> Tickets</div>
+
+  <div class="nav-section-lbl">Engagement</div>
+  <div class="nav-item" data-page="shop" onclick="showPage('shop')"><span class="ic">🛒</span> Shop</div>
+  <div class="nav-item" data-page="builder" onclick="showPage('builder')"><span class="ic">🎨</span> Embed Builder</div>
+  <div class="nav-item" data-page="leaderboards" onclick="showPage('leaderboards')"><span class="ic">🏆</span> Leaderboards</div>
+  <div class="nav-item" data-page="giveaways" onclick="showPage('giveaways')"><span class="ic">🎉</span> Giveaways &amp; Polls</div>
+  <div class="nav-item" data-page="community" onclick="showPage('community')"><span class="ic">💡</span> Suggestions</div>
+
+  <div class="nav-section-lbl">Server Tools</div>
+  <div class="nav-item" data-page="roles" onclick="showPage('roles')"><span class="ic">🎭</span> Roles &amp; Reactions</div>
+  <div class="nav-item" data-page="fun" onclick="showPage('fun')"><span class="ic">✨</span> Starboard &amp; More</div>
+  <div class="nav-item" data-page="customcmds" onclick="showPage('customcmds')"><span class="ic">⌨️</span> Custom Commands</div>
+  <div class="nav-item" data-page="verify" onclick="showPage('verify')"><span class="ic">✅</span> Verification</div>
+
+  <div class="nav-section-lbl">Configuration</div>
+  <div class="nav-item" data-page="settings" onclick="showPage('settings')"><span class="ic">⚙️</span> Settings</div>
+  <div class="nav-item" data-page="botcontrol" onclick="showPage('botcontrol')"><span class="ic">🎮</span> Bot Control</div>
+  <div class="nav-item" data-page="messages" onclick="showPage('messages')"><span class="ic">✉️</span> Messages</div>
+  <div class="nav-item" data-page="youtube" onclick="showPage('youtube')"><span class="ic">📺</span> YouTube</div>
+  <div class="nav-item" data-page="admintools" onclick="showPage('admintools')"><span class="ic">🛠️</span> Admin Tools</div>
+
+  <div class="sidebar-foot">
+    <div><span class="conn-dot off" id="conn-dot"></span><span id="conn-text">Not connected</span></div>
+    <div id="sidebar-version" style="margin-top:4px; opacity:0.6;"></div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- WELCOME (shown once right after picking/adding a server) -->
+  <div class="page" id="page-welcome">
+    <div class="welcome-hero">
+      <h1>Welcome, <span class="name" id="welcome-name">there</span> ❄️</h1>
+      <p>Your bot is live on <span id="welcome-guild" style="color:var(--text)"></span> — here's where people usually start.</p>
+    </div>
+    <div class="shortcut-grid">
+      <div class="shortcut-card" onclick="showPage('tickets')">
+        <div class="ic">🎫</div>
+        <h3>Set up tickets</h3>
+        <p>Build a support ticket panel your members can open from any channel.</p>
+      </div>
+      <div class="shortcut-card" onclick="showPage('automod')">
+        <div class="ic">🧹</div>
+        <h3>Configure automod</h3>
+        <p>Filter banned words, spam, and mass mentions automatically.</p>
+      </div>
+      <div class="shortcut-card" onclick="showPage('permissions')">
+        <div class="ic">👑</div>
+        <h3>Set staff permissions</h3>
+        <p>Decide which roles count as Staff and Admin for commands and the dashboard.</p>
+      </div>
+      <div class="shortcut-card" onclick="showPage('shop')">
+        <div class="ic">🛒</div>
+        <h3>Manage the shop</h3>
+        <p>Add items your members can buy with earned currency.</p>
+      </div>
+      <div class="shortcut-card" onclick="showPage('builder')">
+        <div class="ic">🎨</div>
+        <h3>Build an embed</h3>
+        <p>Design a custom message with buttons and select menus, no code needed.</p>
+      </div>
+      <div class="shortcut-card" onclick="showPage('logs')">
+        <div class="ic">📜</div>
+        <h3>View recent activity</h3>
+        <p>See what's happened on your server, moderation and beyond.</p>
+      </div>
+    </div>
+    <div style="margin-top:22px;">
+      <button class="btn-ghost" onclick="showPage('overview')">Skip to Overview →</button>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="page active" id="page-overview">
+    <h1>Overview</h1>
+    <div class="subtitle">Live status of your bot</div>
+    <div class="card">
+      <div class="card-title">Bot Status <button class="btn-ghost btn-sm" onclick="loadOverview()">↻ Refresh</button></div>
+      <div class="stat-grid" id="overview-stats">
+        <div class="stat"><div class="val">—</div><div class="lbl">Loading...</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span><span class="live-pulse" style="margin-right:8px"></span>Recent Activity</span> <button class="btn-ghost btn-sm" onclick="showPage('logs')">View all →</button></div>
+      <div id="overview-activity" class="log-feed" style="max-height:340px"><div class="empty-state">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- LOGS -->
+  <div class="page" id="page-logs">
+    <h1>Logs</h1>
+    <div class="subtitle"><span class="live-pulse" style="margin-right:6px"></span>Everything happening in your server — moderation, security, members, messages, and config changes</div>
+    <div class="card">
+      <div class="log-filters">
+        <span class="subtab active" data-cat="all" onclick="setLogFilter('all')">All</span>
+        <span class="subtab" data-cat="moderation" onclick="setLogFilter('moderation')">🔨 Moderation</span>
+        <span class="subtab" data-cat="security" onclick="setLogFilter('security')">🛡️ Security</span>
+        <span class="subtab" data-cat="member" onclick="setLogFilter('member')">👤 Members</span>
+        <span class="subtab" data-cat="message" onclick="setLogFilter('message')">💬 Messages</span>
+        <span class="subtab" data-cat="config" onclick="setLogFilter('config')">⚙️ Config</span>
+        <span class="subtab" data-cat="server" onclick="setLogFilter('server')">🖥️ Server</span>
+        <span style="flex:1"></span>
+        <button class="btn-ghost btn-sm" onclick="loadLogs()">↻ Refresh</button>
+        <button class="btn-danger btn-sm" onclick="clearLogs()">🗑 Clear</button>
+      </div>
+      <div id="logs-feed" class="log-feed"><div class="empty-state">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- SECURITY -->
+  <div class="page" id="page-security">
+    <h1>Security Suite</h1>
+    <div class="subtitle">Anti-Nuke, Anti-Raid, Anti-Spam, Anti-Link, Anti-Webhook, AI Moderation</div>
+    <div class="card" id="security-card">Loading...</div>
+  </div>
+
+  <!-- PERMISSIONS -->
+  <div class="page" id="page-permissions">
+    <h1>Permissions</h1>
+    <div class="subtitle">Which Discord roles count as Admin / Staff tier</div>
+    <div class="card" id="permissions-card">Loading...</div>
+  </div>
+
+  <!-- AUTOMOD -->
+  <div class="page" id="page-automod">
+    <h1>Automod</h1>
+    <div class="subtitle">Filtered words trigger an automatic 1-minute timeout + message delete</div>
+    <div class="card">
+      <div class="card-title">Add a word</div>
+      <div class="row">
+        <input type="text" id="badword-input" placeholder="word or phrase" style="flex:1">
+        <button class="btn-primary" onclick="addBadWord()">Add</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Filtered words</div>
+      <div id="badwords-list">Loading...</div>
+    </div>
+  </div>
+
+  <!-- TICKETS -->
+  <div class="page" id="page-tickets">
+    <h1>Tickets</h1>
+    <div class="subtitle">Open support tickets, read-only snapshot</div>
+    <div class="card">
+      <div class="card-title">Open tickets <button class="btn-ghost btn-sm" onclick="loadTickets()">↻ Refresh</button></div>
+      <div id="tickets-list">Loading...</div>
+    </div>
+  </div>
+
+  <!-- ROLES & REACTIONS -->
+  <div class="page" id="page-roles">
+    <h1>Roles &amp; Reactions</h1>
+    <div class="subtitle">Auto-roles for new members, and reaction-role mappings on existing messages</div>
+
+    <div class="card">
+      <div class="card-title">Auto-Roles <span style="font-weight:400; text-transform:none; color:var(--text-muted); font-size:12px">Given automatically when someone joins</span></div>
+      <div class="row" style="margin-bottom:14px">
+        <select id="ar-role" style="flex:1"></select>
+        <button class="btn-primary" onclick="addAutoRole()">+ Add</button>
+      </div>
+      <div id="autoroles-list">Loading...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Reaction Roles</div>
+      <div class="subtitle" style="margin-bottom:14px">Add an emoji-to-role mapping to an existing message. The bot will react to the message with that emoji automatically.</div>
+      <div class="row" style="margin-bottom:10px">
+        <div style="flex:1"><label class="field-label">Channel</label><select id="rr-channel" style="width:100%"></select></div>
+        <div style="flex:1"><label class="field-label">Message ID</label><input type="text" id="rr-messageid" style="width:100%" placeholder="paste message ID"></div>
+      </div>
+      <div class="row" style="margin-bottom:14px">
+        <div style="width:120px"><label class="field-label">Emoji</label><input type="text" id="rr-emoji" style="width:100%" placeholder="🎉"></div>
+        <div style="flex:1"><label class="field-label">Role</label><select id="rr-role" style="width:100%"></select></div>
+        <button class="btn-primary" onclick="addReactionRole()" style="align-self:flex-end">+ Map</button>
+      </div>
+      <div id="reactionroles-list">Loading...</div>
+    </div>
+  </div>
+
+  <!-- FUN / STARBOARD / COUNTING -->
+  <div class="page" id="page-fun">
+    <h1>Starboard &amp; More</h1>
+    <div class="subtitle">Server engagement features</div>
+
+    <div class="card">
+      <div class="card-title">⭐ Starboard</div>
+      <div class="row" style="margin-bottom:14px">
+        <div style="flex:1"><label class="field-label">Channel</label><select id="sb-channel" style="width:100%"><option value="">— disabled —</option></select></div>
+        <div style="width:120px"><label class="field-label">⭐ Threshold</label><input type="number" id="sb-threshold" style="width:100%" value="5"></div>
+      </div>
+      <div class="row" style="margin-bottom:14px"><span class="pill on" id="sb-postcount">0 posts</span></div>
+      <button class="btn-primary" onclick="saveStarboard()">Save</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔢 Counting Game</div>
+      <div class="row" style="margin-bottom:14px">
+        <div style="flex:1"><label class="field-label">Channel</label><select id="cnt-channel" style="width:100%"><option value="">— disabled —</option></select></div>
+      </div>
+      <div class="stat-grid" style="margin-bottom:14px">
+        <div class="stat"><div class="val" id="cnt-count">0</div><div class="lbl">Current count</div></div>
+        <div class="stat"><div class="val mono" id="cnt-lastuser" style="font-size:13px">—</div><div class="lbl">Last counter</div></div>
+      </div>
+      <div class="row">
+        <button class="btn-primary" onclick="saveCounting(false)">Save channel</button>
+        <button class="btn-danger" onclick="saveCounting(true)">Reset count to 0</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOM COMMANDS -->
+  <div class="page" id="page-customcmds">
+    <h1>Custom Commands</h1>
+    <div class="subtitle">Simple text-response commands members can trigger</div>
+    <div class="card">
+      <div class="card-title">Add a command</div>
+      <div class="row" style="margin-bottom:10px">
+        <div style="width:160px"><label class="field-label">Trigger name</label><input type="text" id="cc-name" style="width:100%" placeholder="rules"></div>
+        <div style="flex:1"><label class="field-label">Response</label><input type="text" id="cc-response" style="width:100%" placeholder="What the bot replies with"></div>
+      </div>
+      <button class="btn-primary" onclick="addCustomCmd()">Add</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Existing commands</div>
+      <div id="customcmds-list">Loading...</div>
+    </div>
+  </div>
+
+  <!-- VERIFY -->
+  <div class="page" id="page-verify">
+    <h1>Verification</h1>
+    <div class="subtitle">Gate new members behind a verification step before they can see the server</div>
+    <div class="card">
+      <div class="toggle-row">
+        <div><div class="toggle-label">Enable verification</div><div class="toggle-desc">New members get the Unverified role until they verify</div></div>
+        <label class="switch"><input type="checkbox" id="vf-enabled" onchange="saveVerify()"><span class="slider"></span></label>
+      </div>
+      <div class="row" style="margin-top:16px; margin-bottom:14px">
+        <div style="flex:1"><label class="field-label">Unverified role</label><select id="vf-unverified" style="width:100%"><option value="">— none —</option></select></div>
+        <div style="flex:1"><label class="field-label">Verified role</label><select id="vf-verified" style="width:100%"><option value="">— none —</option></select></div>
+      </div>
+      <div class="field-group"><label class="field-label">Verify channel</label><select id="vf-channel" style="width:100%"><option value="">— none —</option></select></div>
+      <button class="btn-primary" onclick="saveVerify()">Save</button>
+    </div>
+    <div class="card">
+      <div class="card-title">📨 Invite Leaderboard</div>
+      <div class="table-wrap"><table><thead><tr><th>#</th><th>Inviter</th><th>Joins</th><th>Left</th></tr></thead><tbody id="invites-list"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- SHOP -->
+  <div class="page" id="page-shop">
+    <h1>Shop</h1>
+    <div class="subtitle">Items members can buy with FrostCoins</div>
+    <div class="card">
+      <div class="card-title">Add item</div>
+      <div class="row" style="margin-bottom:10px">
+        <div style="flex:1"><label class="field-label">Name</label><input type="text" id="shop-name" style="width:100%"></div>
+        <div style="width:120px"><label class="field-label">Price</label><input type="number" id="shop-price" style="width:100%"></div>
+        <div style="width:160px"><label class="field-label">Type</label>
+          <select id="shop-type" style="width:100%" onchange="renderShopTypeFields()">
+            <option value="badge">Badge (cosmetic)</option>
+            <option value="role">Role</option>
+            <option value="xpboost">XP Boost</option>
+            <option value="coinbox">Mystery Box</option>
+          </select>
+        </div>
+      </div>
+      <div id="shop-type-fields"></div>
+      <div class="field-group"><label class="field-label">Description</label><input type="text" id="shop-desc" style="width:100%"></div>
+      <button class="btn-primary" onclick="addShopItem()">Add to Shop</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Current items</div>
+      <div id="shop-list">Loading...</div>
+    </div>
+  </div>
+
+  <!-- EMBED BUILDER -->
+  <div class="page" id="page-builder">
+    <h1>Embed Builder</h1>
+    <div class="subtitle">Live preview, styled exactly like Discord — send when ready</div>
+    <div class="builder-grid">
+      <div>
+        <div class="card">
+          <div class="field-group"><label class="field-label">Title</label><input type="text" id="eb-title" style="width:100%" oninput="renderPreview()"></div>
+          <div class="field-group"><label class="field-label">Description</label><textarea id="eb-desc" rows="4" style="width:100%" oninput="renderPreview()"></textarea></div>
+          <div class="row" style="margin-bottom:14px">
+            <div style="flex:1"><label class="field-label">Color</label><input type="text" id="eb-color" value="#38bdf8" style="width:100%" oninput="renderPreview()"></div>
+            <div style="flex:1"><label class="field-label">Footer</label><input type="text" id="eb-footer" style="width:100%" oninput="renderPreview()"></div>
+          </div>
+          <div class="row" style="margin-bottom:14px">
+            <div style="flex:1"><label class="field-label">Thumbnail URL</label><input type="text" id="eb-thumb" style="width:100%" oninput="renderPreview()"></div>
+            <div style="flex:1"><label class="field-label">Image URL</label><input type="text" id="eb-image" style="width:100%" oninput="renderPreview()"></div>
+          </div>
+          <div class="card-title">Fields <button class="btn-ghost btn-sm" onclick="addFieldRow()">+ Add Field</button></div>
+          <div id="eb-fields"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Send</div>
+          <div class="row">
+            <select id="eb-channel" style="flex:1"></select>
+            <button class="btn-primary" onclick="sendEmbed()">Send to Channel</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="position:sticky; top:20px">
+          <div class="card-title">Live Preview</div>
+          <div class="discord-preview-bg"><div class="discord-embed" id="live-preview"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARDS -->
+  <div class="page" id="page-leaderboards">
+    <h1>Leaderboards</h1>
+    <div class="subtitle">Read-only snapshots of your economy, XP, and reputation</div>
+    <div class="card">
+      <div class="card-title">💰 Economy</div>
+      <div class="table-wrap"><table><thead><tr><th>#</th><th>User ID</th><th>Total FrostCoins</th></tr></thead><tbody id="lb-economy"></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📈 XP</div>
+      <div class="table-wrap"><table><thead><tr><th>#</th><th>User ID</th><th>Level</th><th>XP</th></tr></thead><tbody id="lb-xp"></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">⭐ Reputation</div>
+      <div class="table-wrap"><table><thead><tr><th>#</th><th>User ID</th><th>Score</th></tr></thead><tbody id="lb-rep"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- GIVEAWAYS & POLLS -->
+  <div class="page" id="page-giveaways">
+    <h1>Giveaways &amp; Polls</h1>
+    <div class="subtitle">Manage what's currently running — new ones start with <span class="badge-tag">/giveaway start</span> in Discord so they have a live message to react to</div>
+    <div class="card">
+      <div class="card-title">🎉 Active Giveaways <button class="btn-ghost btn-sm" onclick="loadGiveawaysPage()">↻ Refresh</button></div>
+      <div id="giveaways-list">Loading...</div>
+    </div>
+    <div class="card">
+      <div class="card-title">📊 Active Polls</div>
+      <div id="polls-list">Loading...</div>
+    </div>
+  </div>
+
+  <!-- COMMUNITY: SUGGESTIONS & APPLICATIONS -->
+  <div class="page" id="page-community">
+    <h1>Suggestions</h1>
+    <div class="subtitle">Member suggestions and staff applications submitted through the bot</div>
+    <div class="card">
+      <div class="card-title">💡 Suggestions <button class="btn-ghost btn-sm" onclick="loadCommunityPage()">↻ Refresh</button></div>
+      <div id="suggestions-list">Loading...</div>
+    </div>
+    <div class="card">
+      <div class="card-title">📋 Applications</div>
+      <div id="applications-list">Loading...</div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="page" id="page-settings">
+    <h1>Settings</h1>
+    <div class="subtitle">Per-server configuration — used to live only in .env, now editable here</div>
+    <div class="card">
+      <div class="card-title">General</div>
+      <div class="row" style="margin-bottom:14px">
+        <div style="flex:1"><label class="field-label">Command prefix</label><input type="text" id="set-prefix" style="width:100%" placeholder="."></div>
+        <div style="flex:1"><label class="field-label">Currency label</label><input type="text" id="set-currency" style="width:100%" placeholder="🪙 Coins"></div>
+      </div>
+      <div class="field-group"><label class="field-label">SMP / Server IP (optional)</label><input type="text" id="set-smpip" style="width:100%" placeholder="play.example.net"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Channels</div>
+      <div class="row" style="margin-bottom:14px">
+        <div style="flex:1"><label class="field-label">Log channel</label><select id="set-logchannel" style="width:100%"><option value="">— none —</option></select></div>
+        <div style="flex:1"><label class="field-label">Welcome channel</label><select id="set-welcomechannel" style="width:100%"><option value="">— none —</option></select></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Roles</div>
+      <div class="row" style="margin-bottom:14px">
+        <div style="flex:1"><label class="field-label">Staff role</label><select id="set-staffrole" style="width:100%"><option value="">— none —</option></select></div>
+        <div style="flex:1"><label class="field-label">Mod role</label><select id="set-modrole" style="width:100%"><option value="">— none —</option></select></div>
+      </div>
+      <div class="row">
+        <div style="flex:1"><label class="field-label">Mute role</label><select id="set-muterole" style="width:100%"><option value="">— none —</option></select></div>
+        <div style="flex:1"><label class="field-label">Member role</label><select id="set-memberrole" style="width:100%"><option value="">— none —</option></select></div>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="saveSettings()">💾 Save settings</button>
+  </div>
+
+  <!-- BOT CONTROL -->
+  <div class="page" id="page-botcontrol">
+    <h1>Bot Control</h1>
+    <div class="subtitle">Live status, one-click messages, and presence — no code required</div>
+    <div class="card">
+      <div class="card-title">Live Status</div>
+      <div class="row" id="bc-status" style="flex-wrap:wrap; gap:16px;"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Send a Quick Message</div>
+      <div class="field-group"><label class="field-label">Channel</label><select id="bc-channel" style="width:100%"></select></div>
+      <div class="field-group"><label class="field-label">Message</label><textarea id="bc-message" rows="3" style="width:100%" placeholder="Type a message to post instantly..."></textarea></div>
+      <button class="btn-primary" onclick="botControlSay()">📨 Send</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Bot Presence <span style="font-weight:400; color:var(--text-dim); font-size:12px;">(applies to every server — Owner only)</span></div>
+      <div class="row" style="margin-bottom:14px">
+        <div style="flex:1"><label class="field-label">Status</label>
+          <select id="bc-presence-status" style="width:100%">
+            <option value="online">🟢 Online</option>
+            <option value="idle">🌙 Idle</option>
+            <option value="dnd">⛔ Do Not Disturb</option>
+            <option value="invisible">⚪ Invisible</option>
+          </select>
+        </div>
+        <div style="flex:1"><label class="field-label">Activity text</label><input type="text" id="bc-presence-activity" style="width:100%" placeholder="e.g. Frostbyte | /help"></div>
+      </div>
+      <button class="btn-primary" onclick="botControlPresence()">🎮 Update Presence</button>
+    </div>
+  </div>
+
+  <!-- MESSAGE CUSTOMIZATION -->
+  <div class="page" id="page-messages">
+    <h1>Messages</h1>
+    <div class="subtitle">Customize the welcome and leave messages — use {user}, {username}, {server}, {membercount}, {inviter}</div>
+    <div class="card">
+      <div class="toggle-row">
+        <div><div class="toggle-label">Custom Welcome Message</div><div class="toggle-desc">Override the greeting line and embed text when someone joins</div></div>
+        <label class="switch"><input type="checkbox" id="msg-welcome-enabled" onchange="saveMessages()"><span class="slider"></span></label>
+      </div>
+      <div class="field-group"><label class="field-label">Greeting line (message content)</label><input type="text" id="msg-welcome-content" style="width:100%" placeholder="🎊 Welcome to the server, {user}!"></div>
+      <div class="field-group"><label class="field-label">Embed description</label><textarea id="msg-welcome-text" rows="4" style="width:100%" placeholder="Hey {user}, welcome to {server}! You're member #{membercount}."></textarea></div>
+      <div class="row" style="margin-bottom:0">
+        <div style="flex:1"><label class="field-label">Test in channel</label><select id="msg-welcome-testchannel" style="width:100%"></select></div>
+        <button class="btn-ghost" style="align-self:flex-end" onclick="testMessage('welcome')">🧪 Send Test</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="toggle-row">
+        <div><div class="toggle-label">Custom Leave Message</div><div class="toggle-desc">Override the goodbye text when someone leaves</div></div>
+        <label class="switch"><input type="checkbox" id="msg-leave-enabled" onchange="saveMessages()"><span class="slider"></span></label>
+      </div>
+      <div class="field-group"><label class="field-label">Message content (optional)</label><input type="text" id="msg-leave-content" style="width:100%" placeholder="Leave blank for none"></div>
+      <div class="field-group"><label class="field-label">Embed description</label><textarea id="msg-leave-text" rows="4" style="width:100%" placeholder="{username} has left {server}. We now have {membercount} members."></textarea></div>
+      <div class="row" style="margin-bottom:0">
+        <div style="flex:1"><label class="field-label">Test in channel</label><select id="msg-leave-testchannel" style="width:100%"></select></div>
+        <button class="btn-ghost" style="align-self:flex-end" onclick="testMessage('leave')">🧪 Send Test</button>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="saveMessages()">💾 Save messages</button>
+  </div>
+
+  <!-- YOUTUBE NOTIFICATIONS -->
+  <div class="page" id="page-youtube">
+    <h1>YouTube Notifications</h1>
+    <div class="subtitle">Announce new uploads automatically — checked every 5 minutes, no API key needed</div>
+    <div class="card">
+      <div class="card-title">Configuration</div>
+      <div class="field-group"><label class="field-label">YouTube Channel ID</label><input type="text" id="yt-channelid" style="width:100%" placeholder="UCxxxxxxxxxxxxxxxxxxxxxx"></div>
+      <div class="field-group"><label class="field-label">Channel display name (optional)</label><input type="text" id="yt-channelname" style="width:100%" placeholder="e.g. My Gaming Channel"></div>
+      <div class="field-group"><label class="field-label">Announcement channel</label><select id="yt-discordchannel" style="width:100%"></select></div>
+      <button class="btn-primary" onclick="saveYoutube()">💾 Save</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Test Connection</div>
+      <div class="toggle-desc" style="margin-bottom:10px">Fetches the latest video without marking it as "seen", so it's safe to click anytime.</div>
+      <button class="btn-ghost" onclick="testYoutube()">🔍 Check Latest Video</button>
+      <div id="yt-preview" style="margin-top:14px"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN TOOLS -->
+  <div class="page" id="page-admintools">
+    <h1>Admin Tools</h1>
+    <div class="subtitle">Direct overrides for economy, clans, and events — use with care, these apply instantly</div>
+
+    <div class="card">
+      <div class="card-title">💰 Economy Lookup</div>
+      <div class="row" style="margin-bottom:12px">
+        <div style="flex:1"><label class="field-label">User ID</label><input type="text" id="eco-userid" style="width:100%" placeholder="Discord user ID"></div>
+        <button class="btn-ghost" style="align-self:flex-end" onclick="lookupEconomy()">🔍 Look Up</button>
+      </div>
+      <div id="eco-result"></div>
+    </div>
+
+    <div class="hud-divider"></div>
+
+    <div class="card">
+      <div class="card-title">🛡️ Clans <button class="btn-ghost btn-sm" onclick="loadClansAdmin()">↻ Refresh</button></div>
+      <div id="clans-list">Loading...</div>
+    </div>
+
+    <div class="hud-divider"></div>
+
+    <div class="card">
+      <div class="card-title">📅 Events <button class="btn-ghost btn-sm" onclick="loadEventsAdmin()">↻ Refresh</button></div>
+      <div id="events-list">Loading...</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+// ⚙️ Set your backend URL here once — no need to type it every visit.
+// Leave as "" to keep the manual entry screen instead.
+const HARDCODED_API_URL = "https://frostbyte.wispbyte.app";
+
+let API_URL = HARDCODED_API_URL || localStorage.getItem("frostbyte_api_url") || "";
+let SESSION_TOKEN = localStorage.getItem("frostbyte_session") || "";
+let API_KEY = localStorage.getItem("frostbyte_api_key") || "";
+let SELECTED_GUILD = JSON.parse(localStorage.getItem("frostbyte_guild") || "null"); // { id, name, icon, level }
+
+function toast(msg, isErr) {
+  const el = document.createElement("div");
+  el.className = "toast" + (isErr ? " err" : "");
+  el.textContent = msg;
+  document.getElementById("toast-wrap").appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+async function api(path, opts = {}) {
+  const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
+  if (SESSION_TOKEN) headers["Authorization"] = "Bearer " + SESSION_TOKEN;
+  else if (API_KEY) headers["X-API-Key"] = API_KEY;
+  if (SELECTED_GUILD?.id) headers["X-Guild-Id"] = SELECTED_GUILD.id;
+  // Hard timeout so a slow/hanging backend can never leave the UI stuck on a
+  // "Loading…" spinner forever with no feedback — after 15s this aborts and
+  // throws a clear error instead.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let res;
+  try {
+    res = await fetch(API_URL + path, { ...opts, headers, signal: controller.signal });
+  } catch (e) {
+    if (e.name === "AbortError") throw new Error("Request timed out — the backend took too long to respond.");
+    throw new Error("Couldn't reach the backend. Check the URL and that the bot is online.");
+  } finally {
+    clearTimeout(timeoutId);
+  }
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  return json;
+}
+
+function formatHoloNumber(n) {
+  if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "") + "k";
+  return String(n);
+}
+
+async function loadHoloStats() {
+  try {
+    const stats = await fetch(API_URL + "/api/public-stats").then(r => r.json());
+    if (!stats.ok) return;
+    document.getElementById("holo-stat-servers").textContent = formatHoloNumber(stats.servers);
+    document.getElementById("holo-stat-members").textContent = formatHoloNumber(stats.members);
+  } catch (e) { /* holo just keeps its placeholder dashes — not worth surfacing an error for */ }
+}
+
+async function checkBackend() {
+  const url = document.getElementById("gate-url").value.trim().replace(/\/$/, "");
+  const errEl = document.getElementById("gate-error");
+  errEl.textContent = "";
+  if (!url) { errEl.textContent = "Backend URL is required."; return; }
+  API_URL = url;
+  try {
+    const res = await fetch(API_URL + "/api/ping");
+    const ping = await res.json();
+    localStorage.setItem("frostbyte_api_url", url);
+    document.getElementById("gate-step-url").style.display = "none";
+    document.getElementById("gate-step-login").style.display = "block";
+    document.getElementById("gate-subtitle").textContent = ping.botOnline ? "Bot is online — log in to continue" : "Backend reached, but bot is offline";
+
+    const authCfg = await fetch(API_URL + "/api/auth-config").then(r => r.json()).catch(() => ({ oauthConfigured: false }));
+    if (!authCfg.oauthConfigured) {
+      document.getElementById("discord-login-btn").style.display = "none";
+      document.getElementById("gate-key-toggle").style.display = "none";
+      document.getElementById("gate-key-panel").style.display = "block";
+      document.getElementById("gate-subtitle").textContent = "Discord login isn't configured — connect with an API key";
+    } else {
+      window._authCfg = authCfg;
+    }
+    if (authCfg.inviteUrl) {
+      for (const id of ["gate-invite-link", "gate-invite-link-2"]) {
+        const el = document.getElementById(id);
+        el.href = authCfg.inviteUrl;
+        el.style.display = "block";
+      }
+    }
+    loadHoloStats();
+  } catch (e) {
+    errEl.innerHTML = `Couldn't reach: <b>${API_URL}/api/ping</b><br>Error: ${e.message}<br><br>Tap to test directly: <a href="${API_URL}/api/ping" target="_blank" style="color:var(--ice-light)">${API_URL}/api/ping</a>`;
+  }
+}
+
+function loginWithDiscord() {
+  const cfg = window._authCfg;
+  if (!cfg?.redirectUri) { toast("OAuth not configured on the backend", true); return; }
+  const params = new URLSearchParams({
+    client_id: cfg.clientId,
+    redirect_uri: cfg.redirectUri,
+    response_type: "code",
+    scope: "identify",
+  });
+  window.location.href = `https://discord.com/oauth2/authorize?${params.toString()}`;
+}
+
+async function connectWithKey() {
+  const key = document.getElementById("gate-key").value.trim();
+  const errEl = document.getElementById("gate-error");
+  if (!key) { errEl.textContent = "Enter an API key."; return; }
+  API_KEY = key;
+  try {
+    await api("/api/me");
+    localStorage.setItem("frostbyte_api_key", key);
+    enterApp({ tag: "API Key", level: "owner" });
+  } catch (e) {
+    errEl.textContent = "Invalid API key.";
+  }
+}
+
+async function enterApp(user) {
+  window._me = user;
+  document.getElementById("conn-text").textContent = `${user.tag}${user.level ? " (" + user.level + ")" : ""}`;
+
+  if (SELECTED_GUILD) {
+    // Re-verify access is still valid before jumping straight into a
+    // previously-selected server (they may have lost their role, etc).
+    try {
+      await api("/api/status");
+      document.getElementById("gate").style.display = "none";
+      setConn(true, true);
+      updateServerBadge();
+      initApp();
+      return;
+    } catch {
+      SELECTED_GUILD = null;
+      localStorage.removeItem("frostbyte_guild");
+    }
+  }
+  await showGuildPicker();
+}
+
+async function showGuildPicker() {
+  document.getElementById("gate-step-url").style.display = "none";
+  document.getElementById("gate-step-login").style.display = "none";
+  document.getElementById("gate-step-guild").style.display = "block";
+  const listEl = document.getElementById("gate-guild-list");
+  const refreshBtn = document.getElementById("gate-refresh-btn");
+  refreshBtn.style.display = "block";
+  refreshBtn.disabled = true;
+  refreshBtn.textContent = "🔄 Checking…";
+  listEl.innerHTML = `<p style="font-size:12px; color:var(--text-dim)">Loading your servers…</p>`;
+  try {
+    const guilds = await api("/api/my-guilds");
+    if (!guilds.length) {
+      listEl.innerHTML = `<p style="font-size:13px; line-height:1.5;">FrostByte isn't in any server you manage yet.<br>Tap <b>Add FrostByte to your server</b> below, pick your server on Discord's screen, then come back here and tap <b>check again</b>.</p>`;
+      return;
+    }
+    listEl.innerHTML = guilds.map(g => `
+      <button class="btn-ghost" style="width:100%; display:flex; align-items:center; gap:10px; text-align:left; padding:10px;" onclick='selectGuild(${JSON.stringify(g).replace(/'/g, "&apos;")})'>
+        ${g.icon ? `<img src="${g.icon}" style="width:28px; height:28px; border-radius:50%">` : `<span style="width:28px; height:28px; border-radius:50%; background:var(--panel-2); display:inline-flex; align-items:center; justify-content:center;">❄️</span>`}
+        <span style="flex:1;">${g.name}</span>
+        <span style="font-size:11px; color:var(--text-dim); text-transform:capitalize;">${g.level}</span>
+      </button>`).join("");
+  } catch (e) {
+    listEl.innerHTML = `<p style="font-size:13px; color:var(--danger)">Couldn't load your servers: ${e.message}</p>`;
+  } finally {
+    refreshBtn.disabled = false;
+    refreshBtn.textContent = "🔄 I've added it — check again";
+  }
+}
+
+function selectGuild(g) {
+  SELECTED_GUILD = g;
+  localStorage.setItem("frostbyte_guild", JSON.stringify(g));
+  document.getElementById("gate").style.display = "none";
+  setConn(true, true);
+  updateServerBadge();
+  initApp(true);
+}
+
+function updateServerBadge() {
+  const nameEl = document.getElementById("server-badge-name");
+  if (nameEl && SELECTED_GUILD) nameEl.textContent = SELECTED_GUILD.name;
+}
+
+function switchServer() {
+  SELECTED_GUILD = null;
+  localStorage.removeItem("frostbyte_guild");
+  document.getElementById("gate").style.display = "flex";
+  showGuildPicker();
+}
+
+function setConn(connected, botOnline) {
+  const dot = document.getElementById("conn-dot");
+  if (!connected) { dot.className = "conn-dot off"; document.getElementById("conn-text").textContent = "Not connected"; return; }
+  dot.className = "conn-dot " + (botOnline ? "on" : "off");
+}
+
+function showPage(name) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+  document.getElementById("page-" + name).classList.add("active");
+  document.querySelector(`.nav-item[data-page="${name}"]`).classList.add("active");
+  const loaders = {
+    overview: loadOverview, security: loadSecurity, permissions: loadPermissions, automod: loadAutomod,
+    shop: loadShop, builder: loadBuilderChannels, leaderboards: loadLeaderboards, tickets: loadTickets,
+    settings: loadSettings, logs: loadLogs, roles: loadRolesPage, fun: loadFunPage, customcmds: loadCustomCmds,
+    verify: loadVerify, giveaways: loadGiveawaysPage, community: loadCommunityPage,
+    botcontrol: loadBotControl, messages: loadMessages, youtube: loadYoutube, admintools: loadAdminTools,
+  };
+  if (loaders[name]) loaders[name]();
+  if (name === "logs") startLogsPolling(); else stopLogsPolling();
+  toggleSidebar(false);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function toggleSidebar(force) {
+  const sb = document.getElementById("sidebar");
+  const scrim = document.getElementById("sidebar-scrim");
+  const burger = document.getElementById("hamburger");
+  const open = force !== undefined ? force : !sb.classList.contains("open");
+  sb.classList.toggle("open", open);
+  scrim.classList.toggle("show", open);
+  burger.classList.toggle("open", open);
+  document.body.style.overflow = open ? "hidden" : "";
+}
+
+function showWelcome() {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+  document.getElementById("page-welcome").classList.add("active");
+  document.getElementById("welcome-name").textContent = (window._me?.tag || "there").split("#")[0];
+  document.getElementById("welcome-guild").textContent = SELECTED_GUILD?.name || "your server";
+  toggleSidebar(false);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function initApp(showWelcomeFirst) {
+  if (showWelcomeFirst) showWelcome(); else showPage("overview");
+  if (document.getElementById("eb-fields").children.length === 0) renderPreview();
+  loadSidebarVersion();
+}
+
+async function loadSidebarVersion() {
+  try {
+    const stats = await fetch(API_URL + "/api/public-stats").then(r => r.json());
+    if (stats.ok && stats.version) {
+      document.getElementById("sidebar-version").textContent = `Frostbyte v${stats.version}`;
+    }
+  } catch (e) { /* not worth surfacing — footer just stays blank */ }
+}
+
+// ── Overview ──
+async function loadOverview() {
+  try {
+    const s = await api("/api/status");
+    setConn(true, true);
+    document.getElementById("overview-stats").innerHTML = `
+      <div class="stat"><div class="val">${s.guildName}</div><div class="lbl">Server</div></div>
+      <div class="stat"><div class="val">${s.memberCount}</div><div class="lbl">Members</div></div>
+      <div class="stat"><div class="val">${s.ping}ms</div><div class="lbl">Ping</div></div>
+      <div class="stat"><div class="val">${Math.floor(s.uptimeSeconds/3600)}h ${Math.floor((s.uptimeSeconds%3600)/60)}m</div><div class="lbl">Uptime</div></div>
+      <div class="stat"><div class="val">${s.commandCount}</div><div class="lbl">Slash commands</div></div>
+      <div class="stat"><div class="val" style="font-size:15px">${s.botTag}</div><div class="lbl">Bot account</div></div>
+    `;
+  } catch (e) { toast("Overview failed: " + e.message, true); setConn(true, false); }
+  try {
+    const { entries } = await api("/api/logs?limit=8");
+    document.getElementById("overview-activity").innerHTML = renderLogEntries(entries);
+  } catch (e) { /* non-fatal on overview */ }
+}
+
+// ── Logs ──
+let CURRENT_LOG_FILTER = "all";
+let logsPollTimer = null;
+const LOG_ICONS = { moderation: "🔨", security: "🛡️", member: "👤", message: "💬", config: "⚙️", server: "🖥️" };
+function timeAgo(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return s + "s ago";
+  if (s < 3600) return Math.floor(s / 60) + "m ago";
+  if (s < 86400) return Math.floor(s / 3600) + "h ago";
+  return Math.floor(s / 86400) + "d ago";
+}
+function renderLogEntries(entries) {
+  if (!entries || !entries.length) return '<div class="empty-state">No activity recorded yet.</div>';
+  return entries.map(e => `
+    <div class="log-entry cat-${e.category}">
+      <div class="log-icon">${LOG_ICONS[e.category] || "•"}</div>
+      <div class="log-body">
+        <div class="log-summary">${e.summary}</div>
+        <div class="log-meta">${timeAgo(e.ts)} · ${e.type}</div>
+      </div>
+    </div>`).join("");
+}
+function setLogFilter(cat) {
+  CURRENT_LOG_FILTER = cat;
+  document.querySelectorAll("#page-logs .subtab").forEach(t => t.classList.toggle("active", t.dataset.cat === cat));
+  loadLogs();
+}
+async function loadLogs() {
+  try {
+    const q = CURRENT_LOG_FILTER !== "all" ? `?category=${CURRENT_LOG_FILTER}&limit=150` : "?limit=150";
+    const { entries } = await api("/api/logs" + q);
+    document.getElementById("logs-feed").innerHTML = renderLogEntries(entries);
+  } catch (e) { toast("Logs load failed: " + e.message, true); }
+}
+async function clearLogs() {
+  if (!confirm("Clear the entire activity log for this server? This can't be undone.")) return;
+  try { await api("/api/logs", { method: "DELETE" }); toast("Logs cleared"); loadLogs(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+function startLogsPolling() {
+  stopLogsPolling();
+  logsPollTimer = setInterval(() => {
+    if (document.getElementById("page-logs")?.classList.contains("active")) loadLogs();
+  }, 8000);
+}
+function stopLogsPolling() { if (logsPollTimer) clearInterval(logsPollTimer); logsPollTimer = null; }
+
+// ── Security ──
+async function loadSecurity() {
+  try {
+    const s = await api("/api/security");
+    const rows = [
+      ["antiNuke", "Anti-Nuke", "Strips roles & bans anyone doing 3+ dangerous actions fast"],
+      ["antiRaid", "Anti-Raid", "Auto-locks the server on a join flood"],
+      ["antiSpam", "Anti-Spam", "Times out message flooders"],
+      ["antiLink", "Anti-Link", "Deletes unapproved links"],
+      ["antiWebhook", "Anti-Webhook", "Deletes unauthorized webhooks instantly"],
+      ["aiMod", "AI Moderation", "AI-assisted detection beyond the word filter"],
+    ];
+    document.getElementById("security-card").innerHTML = rows.map(([key, label, desc]) => `
+      <div class="toggle-row">
+        <div><div class="toggle-label">${label}</div><div class="toggle-desc">${desc}</div></div>
+        <label class="switch"><input type="checkbox" ${s[key].enabled ? "checked" : ""} onchange="toggleSecurity('${key}', this.checked)"><span class="slider"></span></label>
+      </div>`).join("");
+  } catch (e) { toast("Security load failed: " + e.message, true); }
+}
+async function toggleSecurity(key, enabled) {
+  try {
+    await api("/api/security", { method: "POST", body: JSON.stringify({ [key]: { enabled } }) });
+    toast(`${key} ${enabled ? "enabled" : "disabled"}`);
+  } catch (e) { toast("Failed: " + e.message, true); loadSecurity(); }
+}
+
+// ── Permissions ──
+async function loadPermissions() {
+  try {
+    const p = await api("/api/permissions");
+    const memberList = (role) => role?.members?.length ? role.members.map(m => `<span class="badge-tag">${m.tag}</span>`).join(" ") : '<span style="color:var(--text-dim)">None yet</span>';
+    document.getElementById("permissions-card").innerHTML = `
+      <div style="margin-bottom:20px">
+        <div class="toggle-label">👑 Admin Role</div>
+        <div class="toggle-desc">${p.adminRole ? p.adminRole.name : "Not set — use /permissions setadminrole in Discord"}</div>
+        <div style="margin-top:8px">${memberList(p.adminRole)}</div>
+      </div>
+      <div>
+        <div class="toggle-label">🛡️ Staff Role</div>
+        <div class="toggle-desc">${p.staffRole ? p.staffRole.name : "Not set — use /permissions setstaffrole in Discord"}</div>
+        <div style="margin-top:8px">${memberList(p.staffRole)}</div>
+      </div>
+      <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border)">
+        <div class="toggle-label">Owners (from .env, dashboard read-only)</div>
+        <div style="margin-top:8px">${p.owners.map(id => `<span class="badge-tag">${id}</span>`).join(" ")}</div>
+      </div>
+    `;
+  } catch (e) { toast("Permissions load failed: " + e.message, true); }
+}
+
+// ── Automod ──
+async function loadAutomod() {
+  try {
+    const a = await api("/api/automod");
+    document.getElementById("badwords-list").innerHTML = a.badWords.length
+      ? a.badWords.map(w => `<span class="word-chip">${w} <button onclick="removeBadWord('${w}')">×</button></span>`).join("")
+      : '<div class="empty-state">No words filtered yet.</div>';
+  } catch (e) { toast("Automod load failed: " + e.message, true); }
+}
+async function addBadWord() {
+  const input = document.getElementById("badword-input");
+  if (!input.value.trim()) return;
+  try { await api("/api/automod/badwords", { method: "POST", body: JSON.stringify({ word: input.value.trim() }) }); input.value = ""; loadAutomod(); toast("Word added"); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+async function removeBadWord(word) {
+  try { await api("/api/automod/badwords/" + encodeURIComponent(word), { method: "DELETE" }); loadAutomod(); toast("Word removed"); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+
+// ── Shop ──
+function renderShopTypeFields() {
+  const type = document.getElementById("shop-type").value;
+  const el = document.getElementById("shop-type-fields");
+  if (type === "role") el.innerHTML = `<div class="field-group"><label class="field-label">Role ID</label><input type="text" id="shop-roleid" style="width:100%" placeholder="paste role ID"></div>`;
+  else if (type === "xpboost") el.innerHTML = `<div class="field-group"><label class="field-label">Duration (minutes)</label><input type="number" id="shop-duration" style="width:100%" value="60"></div>`;
+  else if (type === "coinbox") el.innerHTML = `<div class="row"><div style="flex:1"><label class="field-label">Min payout</label><input type="number" id="shop-min" style="width:100%" value="10"></div><div style="flex:1"><label class="field-label">Max payout</label><input type="number" id="shop-max" style="width:100%" value="100"></div></div>`;
+  else el.innerHTML = "";
+}
+renderShopTypeFields();
+
+async function loadShop() {
+  try {
+    const items = await api("/api/shop");
+    const entries = Object.entries(items);
+    document.getElementById("shop-list").innerHTML = entries.length ? `
+      <div class="table-wrap"><table><thead><tr><th>Name</th><th>Type</th><th>Price</th><th>Stock</th><th></th></tr></thead><tbody>
+      ${entries.map(([id, it]) => `<tr><td>${it.name}</td><td>${it.type}</td><td>${it.price} 🪙</td><td>${it.stock >= 0 ? it.stock : "∞"}</td><td><button class="btn-danger btn-sm" onclick="removeShopItem('${id}')">Remove</button></td></tr>`).join("")}
+      </tbody></table></div>` : '<div class="empty-state">No items yet — add one above.</div>';
+  } catch (e) { toast("Shop load failed: " + e.message, true); }
+}
+async function addShopItem() {
+  const body = {
+    name: document.getElementById("shop-name").value.trim(),
+    price: parseInt(document.getElementById("shop-price").value),
+    type: document.getElementById("shop-type").value,
+    description: document.getElementById("shop-desc").value.trim(),
+  };
+  if (body.type === "role") body.roleId = document.getElementById("shop-roleid")?.value.trim();
+  if (body.type === "xpboost") body.durationMinutes = parseInt(document.getElementById("shop-duration")?.value || "60");
+  if (body.type === "coinbox") { body.min = parseInt(document.getElementById("shop-min")?.value || "10"); body.max = parseInt(document.getElementById("shop-max")?.value || "100"); }
+  if (!body.name || !body.price) return toast("Name and price are required", true);
+  try { await api("/api/shop", { method: "POST", body: JSON.stringify(body) }); toast("Item added"); loadShop(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+async function removeShopItem(id) {
+  try { await api("/api/shop/" + id, { method: "DELETE" }); loadShop(); toast("Removed"); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+
+// ── Embed Builder ──
+let fieldCount = 0;
+function addFieldRow() {
+  fieldCount++;
+  const id = "field-" + fieldCount;
+  const div = document.createElement("div");
+  div.className = "row";
+  div.style = "margin-bottom:8px";
+  div.id = id;
+  div.innerHTML = `
+    <input type="text" placeholder="Field name" style="flex:1" oninput="renderPreview()" class="f-name">
+    <input type="text" placeholder="Field value" style="flex:2" oninput="renderPreview()" class="f-value">
+    <button class="btn-ghost btn-sm" onclick="document.getElementById('${id}').remove(); renderPreview();">✕</button>
+  `;
+  document.getElementById("eb-fields").appendChild(div);
+}
+
+function renderPreview() {
+  const title = document.getElementById("eb-title").value;
+  const desc = document.getElementById("eb-desc").value;
+  const color = document.getElementById("eb-color").value || "#38bdf8";
+  const footer = document.getElementById("eb-footer").value;
+  const thumb = document.getElementById("eb-thumb").value;
+  const image = document.getElementById("eb-image").value;
+  const fields = [...document.querySelectorAll("#eb-fields .row")].map(r => ({
+    name: r.querySelector(".f-name").value, value: r.querySelector(".f-value").value,
+  })).filter(f => f.name || f.value);
+
+  const el = document.getElementById("live-preview");
+  el.style.borderLeftColor = color;
+  el.innerHTML = `
+    ${thumb ? `<img class="d-thumb" src="${thumb}" onerror="this.style.display='none'">` : ""}
+    ${title ? `<div class="d-title">${escapeHtml(title)}</div>` : ""}
+    ${desc ? `<div class="d-desc">${escapeHtml(desc)}</div>` : ""}
+    ${fields.map(f => `<div class="d-field"><div class="d-field-name">${escapeHtml(f.name)}</div><div class="d-field-value">${escapeHtml(f.value)}</div></div>`).join("")}
+    ${image ? `<img class="d-image" src="${image}" onerror="this.style.display='none'">` : ""}
+    ${footer ? `<div class="d-footer">${escapeHtml(footer)}</div>` : ""}
+  `;
+}
+function escapeHtml(s) { return (s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+async function loadBuilderChannels() {
+  try {
+    const channels = await api("/api/channels");
+    document.getElementById("eb-channel").innerHTML = channels.map(c => `<option value="${c.id}">#${c.name}</option>`).join("");
+  } catch (e) { toast("Couldn't load channels: " + e.message, true); }
+}
+async function sendEmbed() {
+  const fields = [...document.querySelectorAll("#eb-fields .row")].map(r => ({
+    name: r.querySelector(".f-name").value, value: r.querySelector(".f-value").value,
+  })).filter(f => f.name && f.value);
+  const body = {
+    channelId: document.getElementById("eb-channel").value,
+    title: document.getElementById("eb-title").value,
+    description: document.getElementById("eb-desc").value,
+    color: document.getElementById("eb-color").value,
+    footer: document.getElementById("eb-footer").value,
+    thumbnail: document.getElementById("eb-thumb").value,
+    image: document.getElementById("eb-image").value,
+    fields,
+  };
+  try { await api("/api/embed/send", { method: "POST", body: JSON.stringify(body) }); toast("✅ Embed sent!"); }
+  catch (e) { toast("Send failed: " + e.message, true); }
+}
+
+// ── Tickets ──
+async function loadTickets() {
+  try {
+    const tickets = await api("/api/tickets");
+    document.getElementById("tickets-list").innerHTML = tickets.length ? `
+      <div class="table-wrap"><table><thead><tr><th>User</th><th>Channel</th><th>Claimed by</th><th>Priority</th></tr></thead><tbody>
+      ${tickets.map(t => `<tr><td class="mono">${t.userId}</td><td class="mono">${t.channelId}</td><td>${t.claimedBy ? `<span class="mono">${t.claimedBy}</span>` : '<span style="color:var(--text-dim)">Unclaimed</span>'}</td><td>${t.priority ? `<span class="pill on">${t.priority}</span>` : "—"}</td></tr>`).join("")}
+      </tbody></table></div>` : '<div class="empty-state">No open tickets right now.</div>';
+  } catch (e) { toast("Tickets load failed: " + e.message, true); }
+}
+
+// ── Settings ──
+async function loadSettings() {
+  try {
+    const [settings, channels, roles] = await Promise.all([api("/api/settings"), api("/api/channels"), api("/api/roles")]);
+    const chanOpts = (selected) => `<option value="">— none —</option>` + channels.map(c => `<option value="${c.id}" ${c.id === selected ? "selected" : ""}>#${c.name}</option>`).join("");
+    const roleOpts = (selected) => `<option value="">— none —</option>` + roles.map(r => `<option value="${r.id}" ${r.id === selected ? "selected" : ""}>${r.name}</option>`).join("");
+
+    document.getElementById("set-prefix").value = settings.prefix || "";
+    document.getElementById("set-currency").value = settings.currency || "";
+    document.getElementById("set-smpip").value = settings.smpIp || "";
+    document.getElementById("set-logchannel").innerHTML = chanOpts(settings.logChannel);
+    document.getElementById("set-welcomechannel").innerHTML = chanOpts(settings.welcomeChannel);
+    document.getElementById("set-staffrole").innerHTML = roleOpts(settings.staffRole);
+    document.getElementById("set-modrole").innerHTML = roleOpts(settings.modRole);
+    document.getElementById("set-muterole").innerHTML = roleOpts(settings.muteRole);
+    document.getElementById("set-memberrole").innerHTML = roleOpts(settings.memberRole);
+  } catch (e) { toast("Settings load failed: " + e.message, true); }
+}
+async function saveSettings() {
+  const body = {
+    prefix: document.getElementById("set-prefix").value.trim() || ".",
+    currency: document.getElementById("set-currency").value.trim() || "🪙 Coins",
+    smpIp: document.getElementById("set-smpip").value.trim(),
+    logChannel: document.getElementById("set-logchannel").value,
+    welcomeChannel: document.getElementById("set-welcomechannel").value,
+    staffRole: document.getElementById("set-staffrole").value,
+    modRole: document.getElementById("set-modrole").value,
+    muteRole: document.getElementById("set-muterole").value,
+    memberRole: document.getElementById("set-memberrole").value,
+  };
+  try { await api("/api/settings", { method: "POST", body: JSON.stringify(body) }); toast("✅ Settings saved"); }
+  catch (e) { toast("Save failed: " + e.message, true); }
+}
+
+// ── Bot Control ──
+async function loadBotControl() {
+  try {
+    const [presence, channels] = await Promise.all([api("/api/botcontrol/presence"), api("/api/channels")]);
+    document.getElementById("bc-status").innerHTML = `
+      <div class="hud-tile"><div class="hud-label">Bot</div><div class="hud-value">${presence.botTag}</div></div>
+      <div class="hud-tile"><div class="hud-label">Ping</div><div class="hud-value">${presence.ping}ms</div></div>
+      <div class="hud-tile"><div class="hud-label">Uptime</div><div class="hud-value">${Math.floor(presence.uptimeSeconds/3600)}h ${Math.floor((presence.uptimeSeconds%3600)/60)}m</div></div>
+      <div class="hud-tile"><div class="hud-label">Servers</div><div class="hud-value">${presence.serverCount}</div></div>
+      <div class="hud-tile"><div class="hud-label">Status</div><div class="hud-value"><span class="live-dot${presence.status==='dnd'?' warn':presence.status==='invisible'?' off':''}"></span>${presence.status}</div></div>`;
+    document.getElementById("bc-presence-status").value = presence.status;
+    document.getElementById("bc-presence-activity").value = presence.activityName || "";
+    const chanOpts = channels.map(c => `<option value="${c.id}">#${c.name}</option>`).join("");
+    document.getElementById("bc-channel").innerHTML = chanOpts;
+  } catch (e) { toast("Bot Control load failed: " + e.message, true); }
+}
+async function botControlSay() {
+  const channelId = document.getElementById("bc-channel").value;
+  const message = document.getElementById("bc-message").value.trim();
+  if (!channelId || !message) return toast("Pick a channel and type a message first.", true);
+  try {
+    await api("/api/botcontrol/say", { method: "POST", body: JSON.stringify({ channelId, message }) });
+    toast("✅ Message sent");
+    document.getElementById("bc-message").value = "";
+  } catch (e) { toast("Send failed: " + e.message, true); }
+}
+async function botControlPresence() {
+  const status = document.getElementById("bc-presence-status").value;
+  const activityName = document.getElementById("bc-presence-activity").value.trim();
+  try {
+    await api("/api/botcontrol/presence", { method: "POST", body: JSON.stringify({ status, activityName }) });
+    toast("✅ Presence updated");
+  } catch (e) { toast("Update failed: " + e.message, true); }
+}
+
+// ── Message Customization ──
+async function loadMessages() {
+  try {
+    const [tmpl, channels] = await Promise.all([api("/api/messages"), api("/api/channels")]);
+    document.getElementById("msg-welcome-enabled").checked = !!tmpl.welcomeEnabled;
+    document.getElementById("msg-welcome-content").value = tmpl.welcomeContent || "";
+    document.getElementById("msg-welcome-text").value = tmpl.welcomeText || "";
+    document.getElementById("msg-leave-enabled").checked = !!tmpl.leaveEnabled;
+    document.getElementById("msg-leave-content").value = tmpl.leaveContent || "";
+    document.getElementById("msg-leave-text").value = tmpl.leaveText || "";
+    const chanOpts = channels.map(c => `<option value="${c.id}">#${c.name}</option>`).join("");
+    document.getElementById("msg-welcome-testchannel").innerHTML = chanOpts;
+    document.getElementById("msg-leave-testchannel").innerHTML = chanOpts;
+  } catch (e) { toast("Messages load failed: " + e.message, true); }
+}
+async function saveMessages() {
+  const body = {
+    welcomeEnabled: document.getElementById("msg-welcome-enabled").checked,
+    welcomeContent: document.getElementById("msg-welcome-content").value.trim(),
+    welcomeText: document.getElementById("msg-welcome-text").value.trim(),
+    leaveEnabled: document.getElementById("msg-leave-enabled").checked,
+    leaveContent: document.getElementById("msg-leave-content").value.trim(),
+    leaveText: document.getElementById("msg-leave-text").value.trim(),
+  };
+  try { await api("/api/messages", { method: "POST", body: JSON.stringify(body) }); toast("✅ Messages saved"); }
+  catch (e) { toast("Save failed: " + e.message, true); }
+}
+async function testMessage(kind) {
+  const channelId = document.getElementById(kind === "leave" ? "msg-leave-testchannel" : "msg-welcome-testchannel").value;
+  if (!channelId) return toast("Pick a channel to send the test to.", true);
+  try {
+    await api("/api/messages/test", { method: "POST", body: JSON.stringify({ kind, channelId }) });
+    toast("✅ Test message sent");
+  } catch (e) { toast("Test failed: " + e.message, true); }
+}
+
+// ── YouTube Notifications ──
+async function loadYoutube() {
+  try {
+    const [yt, channels] = await Promise.all([api("/api/youtube"), api("/api/channels")]);
+    document.getElementById("yt-channelid").value = yt.ytChannelId || "";
+    document.getElementById("yt-channelname").value = yt.ytChannelName || "";
+    const chanOpts = `<option value="">— none —</option>` + channels.map(c => `<option value="${c.id}" ${c.id === yt.discordChannel ? "selected" : ""}>#${c.name}</option>`).join("");
+    document.getElementById("yt-discordchannel").innerHTML = chanOpts;
+  } catch (e) { toast("YouTube load failed: " + e.message, true); }
+}
+async function saveYoutube() {
+  const body = {
+    ytChannelId: document.getElementById("yt-channelid").value.trim(),
+    ytChannelName: document.getElementById("yt-channelname").value.trim(),
+    discordChannel: document.getElementById("yt-discordchannel").value,
+  };
+  try { await api("/api/youtube", { method: "POST", body: JSON.stringify(body) }); toast("✅ YouTube settings saved"); }
+  catch (e) { toast("Save failed: " + e.message, true); }
+}
+async function testYoutube() {
+  const el = document.getElementById("yt-preview");
+  el.innerHTML = `<div class="toggle-desc">Checking…</div>`;
+  try {
+    const v = await api("/api/youtube/latest");
+    el.innerHTML = `
+      <div class="row" style="align-items:flex-start; gap:12px;">
+        ${v.thumbnail ? `<img src="${v.thumbnail}" style="width:120px; border-radius:8px;">` : ""}
+        <div>
+          <div style="font-weight:600">${v.title || "Untitled"}</div>
+          <div class="toggle-desc">by ${v.author || "Unknown"} ${v.isNew ? "• 🆕 not yet announced" : "• already announced"}</div>
+          ${v.url ? `<a href="${v.url}" target="_blank" style="color:var(--ice)">Watch on YouTube ↗</a>` : ""}
+        </div>
+      </div>`;
+  } catch (e) { el.innerHTML = ""; toast("Check failed: " + e.message, true); }
+}
+
+// ── Admin Tools: Economy ──
+async function loadAdminTools() { await Promise.all([loadClansAdmin(), loadEventsAdmin()]); }
+async function lookupEconomy() {
+  const userId = document.getElementById("eco-userid").value.trim();
+  if (!userId) return toast("Enter a user ID first.", true);
+  try {
+    const eco = await api("/api/economy-admin/" + userId);
+    document.getElementById("eco-result").innerHTML = `
+      <div class="row" style="margin-top:6px; margin-bottom:10px;">
+        <div class="hud-tile"><div class="hud-label">Wallet</div><div class="hud-value">${eco.balance}</div></div>
+        <div class="hud-tile"><div class="hud-label">Bank</div><div class="hud-value">${eco.bank}</div></div>
+      </div>
+      <div class="row" style="margin-bottom:10px">
+        <div style="flex:1"><label class="field-label">Set wallet to</label><input type="number" id="eco-set-balance" style="width:100%" value="${eco.balance}"></div>
+        <div style="flex:1"><label class="field-label">Set bank to</label><input type="number" id="eco-set-bank" style="width:100%" value="${eco.bank}"></div>
+      </div>
+      <div class="row">
+        <button class="btn-primary" onclick="applyEconomy('${userId}')">💾 Apply</button>
+        <button class="btn-ghost" onclick="adjustEconomy('${userId}', 100)">+100</button>
+        <button class="btn-ghost" onclick="adjustEconomy('${userId}', 1000)">+1000</button>
+        <button class="btn-ghost" onclick="adjustEconomy('${userId}', -100)">-100</button>
+      </div>`;
+  } catch (e) { toast("Lookup failed: " + e.message, true); }
+}
+async function applyEconomy(userId) {
+  const balance = Number(document.getElementById("eco-set-balance").value);
+  const bank = Number(document.getElementById("eco-set-bank").value);
+  try { await api("/api/economy-admin/" + userId, { method: "POST", body: JSON.stringify({ balance, bank }) }); toast("✅ Updated"); lookupEconomy(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+async function adjustEconomy(userId, amount) {
+  try { await api("/api/economy-admin/" + userId, { method: "POST", body: JSON.stringify({ addBalance: amount }) }); toast(`✅ ${amount > 0 ? "+" : ""}${amount} applied`); lookupEconomy(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+
+// ── Admin Tools: Clans ──
+async function loadClansAdmin() {
+  try {
+    const clans = await api("/api/clans");
+    document.getElementById("clans-list").innerHTML = clans.length ? clans.map(c => `
+      <div class="toggle-row">
+        <div><div class="toggle-label">🛡️ ${c.name}</div><div class="toggle-desc">Owner: ${c.ownerId} · ${c.members.length} member(s) · Bank: ${c.bank}</div></div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-ghost btn-sm" onclick="editClanBank('${c.key}', ${c.bank})">Edit Bank</button>
+          <button class="btn-danger btn-sm" onclick="disbandClan('${c.key}', '${c.name}')">Disband</button>
+        </div>
+      </div>`).join("") : '<div class="empty-state">No clans founded yet.</div>';
+  } catch (e) { toast("Clans load failed: " + e.message, true); }
+}
+async function editClanBank(key, currentBank) {
+  const val = prompt("Set clan bank to:", currentBank);
+  if (val === null) return;
+  try { await api(`/api/clans/${key}/bank`, { method: "POST", body: JSON.stringify({ bank: Number(val) }) }); toast("✅ Clan bank updated"); loadClansAdmin(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+async function disbandClan(key, name) {
+  if (!confirm(`Disband "${name}"? All members will be removed from it.`)) return;
+  try { await api(`/api/clans/${key}`, { method: "DELETE" }); toast("Clan disbanded"); loadClansAdmin(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+
+// ── Admin Tools: Events ──
+async function loadEventsAdmin() {
+  try {
+    const events = await api("/api/events");
+    document.getElementById("events-list").innerHTML = events.length ? events.map(e => `
+      <div class="toggle-row">
+        <div><div class="toggle-label">📅 ${e.title}</div><div class="toggle-desc">${e.when || "TBD"} · ${e.participants.length} joined</div></div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-ghost btn-sm" onclick="drawEventWinners('${e.id}')">Draw Winner(s)</button>
+          <button class="btn-danger btn-sm" onclick="cancelEvent('${e.id}')">Cancel</button>
+        </div>
+      </div>`).join("") : '<div class="empty-state">No events scheduled. Create one with <span class="badge-tag">/event create</span> in Discord.</div>';
+  } catch (e) { toast("Events load failed: " + e.message, true); }
+}
+async function drawEventWinners(id) {
+  const count = prompt("How many winners to draw?", "1");
+  if (!count) return;
+  try { await api(`/api/events/${id}/winners`, { method: "POST", body: JSON.stringify({ count: Number(count) }) }); toast("✅ Winners posted in Discord"); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+async function cancelEvent(id) {
+  if (!confirm("Cancel this event?")) return;
+  try { await api(`/api/events/${id}`, { method: "DELETE" }); toast("Event cancelled"); loadEventsAdmin(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+
+// ── Leaderboards ──
+async function loadLeaderboards() {
+  try {
+    const [econ, xp, rep] = await Promise.all([api("/api/economy/leaderboard"), api("/api/economy/levels"), api("/api/reputation/leaderboard")]);
+    document.getElementById("lb-economy").innerHTML = econ.map((e, i) => `<tr><td>${i+1}</td><td class="mono">${e.id}</td><td>${e.total} 🪙</td></tr>`).join("") || `<tr><td colspan="3" class="empty-state">No data yet</td></tr>`;
+    document.getElementById("lb-xp").innerHTML = xp.map((e, i) => `<tr><td>${i+1}</td><td class="mono">${e.id}</td><td>${e.level}</td><td>${e.xp}</td></tr>`).join("") || `<tr><td colspan="4" class="empty-state">No data yet</td></tr>`;
+    document.getElementById("lb-rep").innerHTML = rep.map((e, i) => `<tr><td>${i+1}</td><td class="mono">${e.id}</td><td>${e.score} ⭐</td></tr>`).join("") || `<tr><td colspan="3" class="empty-state">No data yet</td></tr>`;
+  } catch (e) { toast("Leaderboards load failed: " + e.message, true); }
+}
+
+// ── Roles & Reactions ──
+async function loadRolesPage() {
+  try {
+    const roles = await api("/api/roles");
+    const opts = roles.map(r => `<option value="${r.id}">${r.name}</option>`).join("");
+    document.getElementById("ar-role").innerHTML = opts;
+    document.getElementById("rr-role").innerHTML = opts;
+    const channels = await api("/api/channels");
+    document.getElementById("rr-channel").innerHTML = channels.map(c => `<option value="${c.id}">#${c.name}</option>`).join("");
+  } catch (e) { toast("Couldn't load roles/channels: " + e.message, true); }
+
+  try {
+    const autoroles = await api("/api/autoroles");
+    document.getElementById("autoroles-list").innerHTML = autoroles.length ? autoroles.map(r => `
+      <div class="toggle-row"><div class="toggle-label">${r.name}</div><button class="btn-danger btn-sm" onclick="removeAutoRole('${r.id}')">Remove</button></div>`).join("")
+      : '<div class="empty-state">No auto-roles set — new members get no role automatically.</div>';
+  } catch (e) { toast("Auto-roles load failed: " + e.message, true); }
+
+  try {
+    const rrs = await api("/api/reaction-roles");
+    document.getElementById("reactionroles-list").innerHTML = rrs.length ? rrs.map(rr => `
+      <div class="card" style="background:rgba(56,189,248,0.03); margin-bottom:10px">
+        <div class="toggle-desc mono" style="margin-bottom:8px">Message: ${rr.messageId}</div>
+        ${rr.mappings.map(m => `<div class="toggle-row"><div>${m.emoji} → <b>${m.roleName}</b></div><button class="btn-danger btn-sm" onclick="removeReactionRole('${rr.messageId}','${encodeURIComponent(m.emoji)}')">Remove</button></div>`).join("")}
+      </div>`).join("") : '<div class="empty-state">No reaction-role messages configured yet.</div>';
+  } catch (e) { toast("Reaction roles load failed: " + e.message, true); }
+}
+async function addAutoRole() {
+  const roleId = document.getElementById("ar-role").value;
+  if (!roleId) return toast("Pick a role first", true);
+  try { await api("/api/autoroles", { method: "POST", body: JSON.stringify({ roleId }) }); toast("Auto-role added"); loadRolesPage(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+async function removeAutoRole(roleId) {
+  try { await api("/api/autoroles/" + roleId, { method: "DELETE" }); toast("Removed"); loadRolesPage(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+async function addReactionRole() {
+  const body = {
+    channelId: document.getElementById("rr-channel").value,
+    messageId: document.getElementById("rr-messageid").value.trim(),
+    emoji: document.getElementById("rr-emoji").value.trim(),
+    roleId: document.getElementById("rr-role").value,
+  };
+  if (!body.messageId || !body.emoji || !body.roleId) return toast("Message ID, emoji, and role are all required", true);
+  try { await api("/api/reaction-roles", { method: "POST", body: JSON.stringify(body) }); toast("Reaction role mapped"); document.getElementById("rr-messageid").value = ""; document.getElementById("rr-emoji").value = ""; loadRolesPage(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+async function removeReactionRole(messageId, emoji) {
+  try { await api(`/api/reaction-roles/${messageId}/${emoji}`, { method: "DELETE" }); toast("Removed"); loadRolesPage(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+
+// ── Fun: Starboard & Counting ──
+async function loadFunPage() {
+  try {
+    const channels = await api("/api/channels");
+    const chanOpts = (sel) => `<option value="">— disabled —</option>` + channels.map(c => `<option value="${c.id}" ${c.id===sel?"selected":""}>#${c.name}</option>`).join("");
+    const sb = await api("/api/starboard");
+    document.getElementById("sb-channel").innerHTML = chanOpts(sb.channel);
+    document.getElementById("sb-threshold").value = sb.threshold;
+    document.getElementById("sb-postcount").textContent = sb.postCount + " posts on the board";
+
+    const cnt = await api("/api/counting");
+    document.getElementById("cnt-channel").innerHTML = chanOpts(cnt.channel);
+    document.getElementById("cnt-count").textContent = cnt.count;
+    document.getElementById("cnt-lastuser").textContent = cnt.lastUser || "—";
+  } catch (e) { toast("Load failed: " + e.message, true); }
+}
+async function saveStarboard() {
+  const body = { channelId: document.getElementById("sb-channel").value, threshold: parseInt(document.getElementById("sb-threshold").value) || 5 };
+  try { await api("/api/starboard", { method: "POST", body: JSON.stringify(body) }); toast("Starboard saved"); loadFunPage(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+async function saveCounting(reset) {
+  const body = { channelId: document.getElementById("cnt-channel").value };
+  if (reset) body.resetCount = true;
+  try { await api("/api/counting", { method: "POST", body: JSON.stringify(body) }); toast(reset ? "Count reset" : "Counting saved"); loadFunPage(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+
+// ── Custom Commands ──
+async function loadCustomCmds() {
+  try {
+    const cmds = await api("/api/customcommands");
+    document.getElementById("customcmds-list").innerHTML = cmds.length ? cmds.map(c => `
+      <div class="toggle-row"><div><div class="toggle-label">!${c.name}</div><div class="toggle-desc">${c.response}</div></div><button class="btn-danger btn-sm" onclick="removeCustomCmd('${c.name}')">Remove</button></div>`).join("")
+      : '<div class="empty-state">No custom commands yet.</div>';
+  } catch (e) { toast("Custom commands load failed: " + e.message, true); }
+}
+async function addCustomCmd() {
+  const name = document.getElementById("cc-name").value.trim();
+  const response = document.getElementById("cc-response").value.trim();
+  if (!name || !response) return toast("Name and response are required", true);
+  try { await api("/api/customcommands", { method: "POST", body: JSON.stringify({ name, response }) }); toast("Command added"); document.getElementById("cc-name").value = ""; document.getElementById("cc-response").value = ""; loadCustomCmds(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+async function removeCustomCmd(name) {
+  try { await api("/api/customcommands/" + encodeURIComponent(name), { method: "DELETE" }); toast("Removed"); loadCustomCmds(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+
+// ── Verify ──
+async function loadVerify() {
+  try {
+    const roles = await api("/api/roles");
+    const channels = await api("/api/channels");
+    const roleOpts = (sel) => `<option value="">— none —</option>` + roles.map(r => `<option value="${r.id}" ${r.id===sel?"selected":""}>${r.name}</option>`).join("");
+    const chanOpts = (sel) => `<option value="">— none —</option>` + channels.map(c => `<option value="${c.id}" ${c.id===sel?"selected":""}>#${c.name}</option>`).join("");
+    const v = await api("/api/verify");
+    document.getElementById("vf-enabled").checked = !!v.enabled;
+    document.getElementById("vf-unverified").innerHTML = roleOpts(v.unverifiedRole);
+    document.getElementById("vf-verified").innerHTML = roleOpts(v.verifiedRole);
+    document.getElementById("vf-channel").innerHTML = chanOpts(v.verifyChannel);
+  } catch (e) { toast("Verify load failed: " + e.message, true); }
+  try {
+    const invites = await api("/api/invites");
+    document.getElementById("invites-list").innerHTML = invites.length ? invites.map((v, i) => `<tr><td>${i+1}</td><td class="mono">${v.inviterId}</td><td>${v.joins}</td><td>${v.left}</td></tr>`).join("") : `<tr><td colspan="4" class="empty-state">No invite data yet</td></tr>`;
+  } catch (e) { /* non-fatal */ }
+}
+async function saveVerify() {
+  const body = {
+    enabled: document.getElementById("vf-enabled").checked,
+    unverifiedRole: document.getElementById("vf-unverified").value,
+    verifiedRole: document.getElementById("vf-verified").value,
+    verifyChannel: document.getElementById("vf-channel").value,
+  };
+  try { await api("/api/verify", { method: "POST", body: JSON.stringify(body) }); toast("Verify settings saved"); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+
+// ── Giveaways & Polls ──
+async function loadGiveawaysPage() {
+  try {
+    const gs = await api("/api/giveaways");
+    document.getElementById("giveaways-list").innerHTML = gs.length ? gs.map(g => `
+      <div class="toggle-row">
+        <div><div class="toggle-label">🎉 ${g.prize}</div><div class="toggle-desc">${g.winners} winner(s) · ends ${new Date(g.endTime).toLocaleString()}</div></div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-ghost btn-sm" onclick="endGiveawayNow('${g.messageId}')">End Now</button>
+          <button class="btn-ghost btn-sm" onclick="rerollGiveaway('${g.messageId}')">Reroll</button>
+          <button class="btn-danger btn-sm" onclick="cancelGiveaway('${g.messageId}')">Cancel</button>
+        </div>
+      </div>`).join("") : '<div class="empty-state">No active giveaways. Start one with <span class="badge-tag">/giveaway start</span> in Discord.</div>';
+  } catch (e) { toast("Giveaways load failed: " + e.message, true); }
+  try {
+    const polls = await api("/api/polls");
+    document.getElementById("polls-list").innerHTML = polls.length ? polls.map(p => `
+      <div class="toggle-row"><div class="toggle-label">${p.question || "Poll"}</div></div>`).join("") : '<div class="empty-state">No active polls.</div>';
+  } catch (e) { toast("Polls load failed: " + e.message, true); }
+}
+async function endGiveawayNow(messageId) {
+  if (!confirm("End this giveaway right now?")) return;
+  try { await api(`/api/giveaways/${messageId}/end`, { method: "POST" }); toast("✅ Giveaway will end on its next check (within a minute)"); loadGiveawaysPage(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+async function rerollGiveaway(messageId) {
+  const count = prompt("How many new winners to draw?", "1");
+  if (!count) return;
+  try {
+    const r = await api(`/api/giveaways/${messageId}/reroll`, { method: "POST", body: JSON.stringify({ count: Number(count) }) });
+    toast(`✅ Rerolled — new winner(s) posted in Discord`);
+  } catch (e) { toast("Failed: " + e.message, true); }
+}
+async function cancelGiveaway(messageId) {
+  if (!confirm("Cancel this giveaway? No winner will be picked.")) return;
+  try { await api("/api/giveaways/" + messageId, { method: "DELETE" }); toast("Giveaway cancelled"); loadGiveawaysPage(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+
+// ── Community: Suggestions & Applications ──
+async function loadCommunityPage() {
+  try {
+    const suggestions = await api("/api/suggestions");
+    document.getElementById("suggestions-list").innerHTML = suggestions.length ? suggestions.map((s, i) => `
+      <div class="toggle-row">
+        <div><div class="toggle-label">${s.text}</div><div class="toggle-desc">by ${s.user} · ${new Date(s.date).toLocaleString()}</div></div>
+        <button class="btn-danger btn-sm" onclick="removeSuggestion(${i})">Dismiss</button>
+      </div>`).join("") : '<div class="empty-state">No suggestions yet.</div>';
+  } catch (e) { toast("Suggestions load failed: " + e.message, true); }
+  try {
+    const apps = await api("/api/applications");
+    document.getElementById("applications-list").innerHTML = apps.length ? apps.map(a => `
+      <div class="toggle-row"><div class="toggle-label">${a.user}</div><div class="toggle-desc mono">${new Date(a.date).toLocaleString()}</div></div>`).join("") : '<div class="empty-state">No applications yet.</div>';
+  } catch (e) { toast("Applications load failed: " + e.message, true); }
+}
+async function removeSuggestion(index) {
+  try { await api("/api/suggestions/" + index, { method: "DELETE" }); toast("Dismissed"); loadCommunityPage(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+
+// ── On page load: handle OAuth redirect, saved session, or saved API key ──
+(async function bootstrap() {
+  if (document.getElementById("gate-current-url")) document.getElementById("gate-current-url").textContent = API_URL || "(no URL set)";
+  if (HARDCODED_API_URL) document.getElementById("gate-step-url").style.display = "none"; // never show the URL box at all
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const tokenFromRedirect = urlParams.get("token");
+
+  if (tokenFromRedirect && API_URL) {
+    SESSION_TOKEN = tokenFromRedirect;
+    localStorage.setItem("frostbyte_session", tokenFromRedirect);
+    window.history.replaceState({}, "", window.location.pathname); // strip ?token= from the URL bar
+  }
+
+  if (!API_URL) return; // first visit — user needs to enter backend URL manually
+
+  document.getElementById("gate-url").value = API_URL;
+  if (SESSION_TOKEN || API_KEY) {
+    try {
+      const me = await api("/api/me");
+      enterApp(me);
+    } catch {
+      SESSION_TOKEN = ""; API_KEY = "";
+      localStorage.removeItem("frostbyte_session"); localStorage.removeItem("frostbyte_api_key");
+      checkBackend();
+    }
+  } else {
+    checkBackend();
+  }
+})();
+</script>
+</body>
+</html>

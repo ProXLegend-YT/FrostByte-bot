@@ -484,7 +484,13 @@
     <div id="gate-step-guild" style="display:none">
       <p style="font-size:12px; margin-bottom:10px;">Pick a server to manage:</p>
       <div id="gate-guild-list" style="display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto;"></div>
-      <a id="gate-invite-link-2" href="#" target="_blank" class="btn-ghost" style="width:100%; display:block; text-align:center; margin-top:14px; text-decoration:none;">➕ Add FrostByte to another server</a>
+      <a id="gate-invite-link-2" href="#" target="_blank"
+         style="display:none; width:100%; box-sizing:border-box; text-align:center; margin-top:16px; padding:11px; border-radius:10px; text-decoration:none; font-weight:600; background:#5865F2; color:#fff;">
+        ➕ Add FrostByte to your server
+      </a>
+      <button class="btn-ghost" id="gate-refresh-btn" style="width:100%; margin-top:8px; display:none;" onclick="showGuildPicker()">
+        🔄 I've added it — check again
+      </button>
     </div>
 
     <div class="gate-error" id="gate-error"></div>
@@ -1105,11 +1111,15 @@ async function showGuildPicker() {
   document.getElementById("gate-step-login").style.display = "none";
   document.getElementById("gate-step-guild").style.display = "block";
   const listEl = document.getElementById("gate-guild-list");
+  const refreshBtn = document.getElementById("gate-refresh-btn");
+  refreshBtn.style.display = "block";
+  refreshBtn.disabled = true;
+  refreshBtn.textContent = "🔄 Checking…";
   listEl.innerHTML = `<p style="font-size:12px; color:var(--text-dim)">Loading your servers…</p>`;
   try {
     const guilds = await api("/api/my-guilds");
     if (!guilds.length) {
-      listEl.innerHTML = `<p style="font-size:13px;">FrostByte isn't in any server you manage yet. Add it to one below, then come back and refresh.</p>`;
+      listEl.innerHTML = `<p style="font-size:13px; line-height:1.5;">FrostByte isn't in any server you manage yet.<br>Tap <b>Add FrostByte to your server</b> below, pick your server on Discord's screen, then come back here and tap <b>check again</b>.</p>`;
       return;
     }
     listEl.innerHTML = guilds.map(g => `
@@ -1120,6 +1130,9 @@ async function showGuildPicker() {
       </button>`).join("");
   } catch (e) {
     listEl.innerHTML = `<p style="font-size:13px; color:var(--danger)">Couldn't load your servers: ${e.message}</p>`;
+  } finally {
+    refreshBtn.disabled = false;
+    refreshBtn.textContent = "🔄 I've added it — check again";
   }
 }
 

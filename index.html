@@ -1000,7 +1000,20 @@ async function api(path, opts = {}) {
   if (SESSION_TOKEN) headers["Authorization"] = "Bearer " + SESSION_TOKEN;
   else if (API_KEY) headers["X-API-Key"] = API_KEY;
   if (SELECTED_GUILD?.id) headers["X-Guild-Id"] = SELECTED_GUILD.id;
-  const res = await fetch(API_URL + path, { ...opts, headers });
+  // Hard timeout so a slow/hanging backend can never leave the UI stuck on a
+  // "Loading…" spinner forever with no feedback — after 15s this aborts and
+  // throws a clear error instead.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let res;
+  try {
+    res = await fetch(API_URL + path, { ...opts, headers, signal: controller.signal });
+  } catch (e) {
+    if (e.name === "AbortError") throw new Error("Request timed out — the backend took too long to respond.");
+    throw new Error("Couldn't reach the backend. Check the URL and that the bot is online.");
+  } finally {
+    clearTimeout(timeoutId);
+  }
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
   return json;

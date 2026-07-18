@@ -171,6 +171,77 @@
   @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
 
   /* ── Command category strip ── */
+  /* ── How it works (3-step guide) ── */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 780px) { .steps { grid-template-columns: 1fr; } }
+  .step-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px 20px; position: relative;
+  }
+  .step-num {
+    width: 34px; height: 34px; border-radius: 10px; margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px;
+    background: linear-gradient(135deg, var(--ice), var(--cyan)); color: #051019;
+  }
+  .step-card h3 { font-size: 16px; margin: 0 0 8px; }
+  .step-card p { font-size: 13.5px; color: var(--text-muted); margin: 0; line-height: 1.6; }
+  .step-arrow { display: none; }
+  @media (min-width: 781px) {
+    .step-card:not(:last-child)::after {
+      content: "→"; position: absolute; right: -26px; top: 50%; transform: translateY(-50%);
+      color: var(--text-dim); font-size: 18px;
+    }
+  }
+  .guide-block {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 26px clamp(20px, 4vw, 32px); margin-top: 28px;
+  }
+  .guide-block h3 { font-size: 15px; margin: 0 0 10px; color: var(--ice-light); }
+  .guide-block p { font-size: 14px; color: var(--text-muted); line-height: 1.75; margin: 0 0 14px; }
+  .guide-block p:last-child { margin-bottom: 0; }
+  .guide-block b { color: var(--text); }
+  .trust-line { font-size: 12.5px; color: var(--text-dim); margin-top: 14px; }
+
+  /* ── Permission picker modal ──
+     Discord's own consent screen (the one showing "Add a bot to a server",
+     "Create commands", the server dropdown) can't be reskinned — it's
+     rendered by Discord itself for security reasons, not by this site.
+     What Sapphire and other bots actually customize is the step BEFORE
+     that: choosing what permission level to request. That's what this is. */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 100; display: none;
+    background: rgba(2,6,12,0.75); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box {
+    width: 460px; max-width: 100%; max-height: 88vh; overflow-y: auto;
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 26px; box-shadow: 0 30px 70px -20px rgba(0,0,0,0.7);
+  }
+  .modal-box h3 { font-size: 18px; margin: 0 0 6px; }
+  .modal-box .sub { font-size: 13px; color: var(--text-muted); margin: 0 0 20px; line-height: 1.5; }
+  .perm-mode-row { display: flex; gap: 8px; margin-bottom: 18px; }
+  .perm-mode-btn {
+    flex: 1; padding: 10px; border-radius: 10px; text-align: center; cursor: pointer;
+    font-size: 13px; font-weight: 700; border: 1px solid var(--border); background: var(--panel-2); color: var(--text-muted);
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .perm-mode-btn.active { border-color: var(--ice); color: var(--ice-light); background: rgba(56,189,248,0.1); }
+  .perm-list { display: none; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto; margin-bottom: 18px; border: 1px solid var(--border); border-radius: 10px; padding: 6px; }
+  .perm-list.show { display: flex; }
+  .perm-row { display: flex; align-items: center; gap: 10px; padding: 8px 8px; border-radius: 8px; font-size: 13px; }
+  .perm-row:hover { background: rgba(255,255,255,0.03); }
+  .perm-row input { width: 16px; height: 16px; accent-color: var(--ice); flex-shrink: 0; }
+  .perm-row .perm-name { flex: 1; }
+  .perm-row .perm-why { font-size: 11px; color: var(--text-dim); }
+  .admin-note { font-size: 12.5px; color: var(--text-muted); background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; line-height: 1.6; margin-bottom: 18px; }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-actions .btn { flex: 1; }
+  .modal-close { position: absolute; top: 18px; right: 18px; background: none; border: none; color: var(--text-dim); font-size: 20px; cursor: pointer; line-height: 1; }
+  .modal-box { position: relative; }
+
   .cmd-strip { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
   .cmd-chip {
     font-size: 13px; font-weight: 600; padding: 9px 16px; border-radius: 999px;
@@ -215,6 +286,7 @@
 <nav class="nav">
   <div class="nav-brand"><span class="flake">❄️</span> Frostbyte</div>
   <div class="nav-links">
+    <a href="#how-it-works">How It Works</a>
     <a href="#features">Features</a>
     <a href="#commands">Commands</a>
     <a href="#" id="nav-invite-link">Invite</a>
@@ -238,7 +310,41 @@
     <div class="hero-stat"><div class="n" id="stat-members">—</div><div class="l">Members reached</div></div>
     <div class="hero-stat"><div class="n">78</div><div class="l">Commands</div></div>
   </div>
+  <div class="trust-line">Free forever · No credit card · Live in under a minute</div>
 </header>
+
+<div class="section-divider"></div>
+
+<section id="how-it-works">
+  <div style="text-align:center; margin-bottom:36px;" class="reveal">
+    <div class="eyebrow" style="justify-content:center; display:flex;">Getting Started</div>
+    <h2 style="font-size:clamp(1.6rem, 3.5vw, 2.3rem); font-weight:800; letter-spacing:-0.02em; margin:0;">Three steps. That's it.</h2>
+  </div>
+  <div class="steps reveal">
+    <div class="step-card">
+      <div class="step-num">1</div>
+      <h3>Add Frostbyte to Discord</h3>
+      <p>Tap "Add to Discord" below. Discord opens its own screen where you pick which of your servers to add the bot to — nothing happens on this site.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">2</div>
+      <h3>Come back and open the Dashboard</h3>
+      <p>Once the bot's in your server, return here and tap "Open Dashboard." Log in with Discord — this is Discord's own secure login, we never see your password.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">3</div>
+      <h3>Pick your server and configure</h3>
+      <p>After logging in, choose your server from the list. You're straight into the control panel — set up moderation, economy, tickets, and everything else.</p>
+    </div>
+  </div>
+
+  <div class="guide-block reveal">
+    <h3>How adding Frostbyte actually works</h3>
+    <p>Clicking <b>"Add to Discord"</b> takes you to Discord's own official page for adding a bot — Frostbyte never asks for your Discord password or any personal information at that step. You'll need the <b>Manage Server</b> permission on whichever server you want to add it to; if you don't have that permission, ask whoever owns or manages the server to click the link instead.</p>
+    <p>Once the bot is in your server, you can start using it two ways: type <b>/</b> in any channel to use its 78 slash commands directly in Discord, or open the <b>web Dashboard</b> for a visual control panel — no commands to remember, just click through settings for moderation, tickets, the economy system, automod, and more.</p>
+    <p>The Dashboard login is separate from adding the bot — it's just you signing in with your own Discord account (the same official Discord login screen you already trust) so the site knows which of your servers you're allowed to manage. If a server doesn't show up in the picker, it's usually because the bot hasn't been added there yet, or you don't have Staff/Admin permission on it.</p>
+  </div>
+</section>
 
 <div class="section-divider"></div>
 
@@ -373,6 +479,30 @@
   </div>
 </footer>
 
+<div class="modal-overlay" id="perm-modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closePermModal()">✕</button>
+    <h3>Add Frostbyte to your server</h3>
+    <p class="sub">Choose how much access to grant. You'll pick the actual server on Discord's own screen next.</p>
+
+    <div class="perm-mode-row">
+      <div class="perm-mode-btn active" id="mode-admin-btn" onclick="setPermMode('admin')">Administrator</div>
+      <div class="perm-mode-btn" id="mode-custom-btn" onclick="setPermMode('custom')">Custom</div>
+    </div>
+
+    <div class="admin-note" id="admin-note">
+      Simplest option — every current and future Frostbyte command works with no permission errors. This is what most servers pick.
+    </div>
+
+    <div class="perm-list" id="perm-list"></div>
+
+    <div class="modal-actions">
+      <a class="btn btn-secondary" href="#" onclick="closePermModal()">Cancel</a>
+      <a class="btn btn-primary" href="#" id="perm-continue-btn" target="_blank">Continue to Discord →</a>
+    </div>
+  </div>
+</div>
+
 <script>
 const API_URL = "https://frostbyte.wispbyte.app";
 
@@ -391,15 +521,93 @@ async function loadStats() {
   } catch (e) { /* stats stay as placeholders — not worth blocking the page for */ }
 }
 
+// ── Permission picker ──
+// Discord's consent screen itself can't be customized — this builds the
+// `permissions=` integer in the invite URL beforehand, which IS something
+// we control. The list below reflects what Frostbyte's actual commands
+// need (moderation, tickets, roles, embeds) rather than a generic default.
+const PERMS = [
+  { bit: 1024n,          name: "View Channels",        why: "see and read messages",        checked: true },
+  { bit: 2048n,         name: "Send Messages",         why: "reply, embeds, tickets",        checked: true },
+  { bit: 274877906944n, name: "Send Messages in Threads", why: "ticket & thread replies",    checked: true },
+  { bit: 8192n,         name: "Manage Messages",       why: "purge, starboard",              checked: true },
+  { bit: 16384n,        name: "Embed Links",           why: "every embed the bot sends",     checked: true },
+  { bit: 32768n,        name: "Attach Files",          why: "transcripts, generated images", checked: true },
+  { bit: 65536n,        name: "Read Message History",  why: "context for AI & logs",         checked: true },
+  { bit: 64n,           name: "Add Reactions",         why: "reaction roles, polls",          checked: true },
+  { bit: 16n,           name: "Manage Channels",       why: "tickets, lock/unlock, nuke",     checked: true },
+  { bit: 268435456n,    name: "Manage Roles",          why: "autorole, reaction roles",       checked: true },
+  { bit: 134217728n,    name: "Manage Nicknames",      why: "/server-setup setnick",          checked: true },
+  { bit: 2n,             name: "Kick Members",          why: "/modtools kick",                 checked: true },
+  { bit: 4n,             name: "Ban Members",           why: "/modtools ban",                  checked: true },
+  { bit: 1099511627776n, name: "Timeout Members",       why: "/modtools timeout",              checked: true },
+  { bit: 128n,           name: "View Audit Log",        why: "anti-nuke detection",            checked: true },
+];
+const ADMIN_BIT = "8"; // Administrator
+
+let permMode = "admin";
+let clientId = null;
+
+function renderPermList() {
+  const list = document.getElementById("perm-list");
+  list.innerHTML = PERMS.map((p, i) => `
+    <label class="perm-row">
+      <input type="checkbox" data-idx="${i}" ${p.checked ? "checked" : ""} onchange="updatePermLink()">
+      <span class="perm-name">${p.name}</span>
+      <span class="perm-why">${p.why}</span>
+    </label>`).join("");
+}
+
+function setPermMode(mode) {
+  permMode = mode;
+  document.getElementById("mode-admin-btn").classList.toggle("active", mode === "admin");
+  document.getElementById("mode-custom-btn").classList.toggle("active", mode === "custom");
+  document.getElementById("admin-note").style.display = mode === "admin" ? "block" : "none";
+  document.getElementById("perm-list").classList.toggle("show", mode === "custom");
+  updatePermLink();
+}
+
+function updatePermLink() {
+  let permInt;
+  if (permMode === "admin") {
+    permInt = ADMIN_BIT;
+  } else {
+    let sum = 0n;
+    document.querySelectorAll("#perm-list input[type=checkbox]:checked").forEach(cb => {
+      sum |= PERMS[Number(cb.dataset.idx)].bit;
+    });
+    permInt = sum.toString();
+  }
+  const btn = document.getElementById("perm-continue-btn");
+  if (clientId) {
+    btn.href = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=${permInt}&scope=bot%20applications.commands`;
+  }
+}
+
+function openPermModal() {
+  document.getElementById("perm-modal").classList.add("show");
+  updatePermLink();
+}
+function closePermModal() {
+  document.getElementById("perm-modal").classList.remove("show");
+}
+
 async function loadInviteUrl() {
   try {
     const cfg = await fetch(API_URL + "/api/auth-config").then(r => r.json());
-    if (!cfg.inviteUrl) return;
-    for (const id of ["nav-invite-link", "nav-add-btn", "hero-add-btn", "cta-add-btn", "footer-invite-link"]) {
+    clientId = cfg.clientId || null;
+    renderPermList();
+    updatePermLink();
+    // "Add to Discord" buttons open the permission picker instead of
+    // jumping straight to a fixed link — this is the part we can actually
+    // build to match Sapphire's flow (pick permissions, then continue).
+    for (const id of ["nav-add-btn", "hero-add-btn", "cta-add-btn", "nav-invite-link", "footer-invite-link"]) {
       const el = document.getElementById(id);
-      if (el) el.href = cfg.inviteUrl;
+      if (!el) continue;
+      el.href = "#";
+      el.onclick = (e) => { e.preventDefault(); openPermModal(); };
     }
-  } catch (e) { /* buttons just stay as "#" if this fails — not fatal */ }
+  } catch (e) { /* buttons just stay inert if this fails — not fatal */ }
 }
 
 loadStats();

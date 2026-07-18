@@ -340,6 +340,63 @@
   .gate-card button { width: 100%; padding: 11px; }
   .gate-error { color: var(--danger); font-size: 12px; margin-top: 10px; min-height: 16px; }
 
+  /* ── Holographic bot showcase (login screen) ──
+     A projected-light "readout" of the bot's live stats, built from the same
+     ice/frost + scanline language as the rest of the dashboard rather than a
+     generic stat-card. The ring is the signature element: a slowly rotating
+     conic-gradient halo standing in for a holographic projection field. */
+  .holo { position: relative; width: 168px; height: 168px; margin: 4px auto 6px; display: flex; align-items: center; justify-content: center; }
+  .holo-ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent 0%, rgba(56,189,248,0.55) 15%, transparent 30%, transparent 55%, rgba(125,211,252,0.4) 70%, transparent 85%);
+    animation: holoSpin 6s linear infinite;
+    -webkit-mask: radial-gradient(circle, transparent 62%, #000 63%, #000 100%);
+            mask: radial-gradient(circle, transparent 62%, #000 63%, #000 100%);
+  }
+  .holo-ring::after {
+    content: ""; position: absolute; inset: 10px; border-radius: 50%;
+    border: 1px dashed rgba(56,189,248,0.25);
+  }
+  @keyframes holoSpin { to { transform: rotate(360deg); } }
+  .holo-core {
+    position: relative; width: 128px; height: 128px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 40%, rgba(56,189,248,0.14), rgba(13,24,38,0.4) 70%);
+    border: 1px solid rgba(56,189,248,0.3);
+    box-shadow: 0 0 30px -4px rgba(56,189,248,0.45), inset 0 0 20px rgba(56,189,248,0.08);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  }
+  .holo-flake { font-size: 26px; filter: drop-shadow(0 0 10px rgba(125,211,252,0.8)); animation: float 3.5s ease-in-out infinite; }
+  .holo-stats { display: flex; gap: 10px; margin-top: 4px; }
+  .holo-stat { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
+  .holo-stat-val { font-size: 13px; font-weight: 700; color: var(--ice-light); font-variant-numeric: tabular-nums; }
+  .holo-stat-label { font-size: 8px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); }
+  .holo-scan {
+    position: absolute; left: 8%; right: 8%; height: 2px; top: 50%;
+    background: linear-gradient(90deg, transparent, rgba(125,211,252,0.9), transparent);
+    filter: blur(0.5px);
+    animation: holoScanMove 2.6s ease-in-out infinite;
+  }
+  @keyframes holoScanMove {
+    0%, 100% { transform: translateY(-46px); opacity: 0; }
+    15% { opacity: 1; }
+    50% { transform: translateY(46px); opacity: 1; }
+    85% { opacity: 0; }
+  }
+
+  .holo-feature-track {
+    display: flex; gap: 8px; overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  }
+  .holo-feature-track { animation: holoTrackScroll 16s linear infinite; width: max-content; }
+  .holo-chip {
+    flex: 0 0 auto; font-size: 11px; white-space: nowrap; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--border); background: rgba(16,31,48,0.6); color: var(--text-muted);
+  }
+  @keyframes holoTrackScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) {
+    .holo-ring, .holo-scan, .holo-feature-track, .holo-flake { animation: none; }
+  }
+
   /* ── Embed Builder Preview ── */
   .builder-grid { display: grid; grid-template-columns: 1fr 380px; gap: 18px; align-items: start; }
   @media (max-width: 900px) { .builder-grid { grid-template-columns: 1fr; } }
@@ -472,12 +529,52 @@
     </div>
 
     <div id="gate-step-login" style="display:none">
-      <button class="btn-primary" id="discord-login-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; background:#5865F2; color:#fff;" onclick="loginWithDiscord()">
+      <div id="holo" class="holo">
+        <div class="holo-ring"></div>
+        <div class="holo-core">
+          <div class="holo-flake">❄️</div>
+          <div class="holo-stats" id="holo-stats">
+            <div class="holo-stat"><span class="holo-stat-val" id="holo-stat-servers">—</span><span class="holo-stat-label">servers</span></div>
+            <div class="holo-stat"><span class="holo-stat-val" id="holo-stat-members">—</span><span class="holo-stat-label">members</span></div>
+            <div class="holo-stat"><span class="holo-stat-val">78</span><span class="holo-stat-label">commands</span></div>
+          </div>
+        </div>
+        <div class="holo-scan"></div>
+      </div>
+      <div class="holo-feature-track" id="holo-features">
+        <span class="holo-chip">💰 Economy &amp; shops</span>
+        <span class="holo-chip">🛡️ Moderation &amp; anti-nuke</span>
+        <span class="holo-chip">🎫 Tickets</span>
+        <span class="holo-chip">🤖 AI chat &amp; translation</span>
+        <span class="holo-chip">🎉 Giveaways &amp; events</span>
+        <span class="holo-chip">🎮 Games &amp; leaderboards</span>
+        <span class="holo-chip">📨 Invite tracking</span>
+        <span class="holo-chip">🔒 Verification</span>
+        <span class="holo-chip" aria-hidden="true">💰 Economy &amp; shops</span>
+        <span class="holo-chip" aria-hidden="true">🛡️ Moderation &amp; anti-nuke</span>
+        <span class="holo-chip" aria-hidden="true">🎫 Tickets</span>
+        <span class="holo-chip" aria-hidden="true">🤖 AI chat &amp; translation</span>
+        <span class="holo-chip" aria-hidden="true">🎉 Giveaways &amp; events</span>
+        <span class="holo-chip" aria-hidden="true">🎮 Games &amp; leaderboards</span>
+        <span class="holo-chip" aria-hidden="true">📨 Invite tracking</span>
+        <span class="holo-chip" aria-hidden="true">🔒 Verification</span>
+      </div>
+
+      <button class="btn-primary" id="discord-login-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; background:#5865F2; color:#fff; margin-top:18px;" onclick="loginWithDiscord()">
         💬 Log in with Discord
       </button>
-      <p style="font-size:12px; margin-top:14px;">or use an API key instead</p>
-      <input type="password" id="gate-key" placeholder="DASHBOARD_API_KEY from .env">
-      <button class="btn-ghost" style="width:100%" onclick="connectWithKey()">Connect with API Key</button>
+      <p style="font-size:11px; margin-top:10px; color:var(--text-dim);">You'll pick which of your servers to manage after logging in.</p>
+
+      <div id="gate-key-toggle" style="margin-top:18px;">
+        <button type="button" onclick="document.getElementById('gate-key-panel').style.display='block'; this.style.display='none';"
+                style="width:auto; background:none; border:none; color:var(--text-dim); font-size:11px; text-decoration:underline; cursor:pointer; padding:0;">
+          Bot owner? Use an API key instead
+        </button>
+      </div>
+      <div id="gate-key-panel" style="display:none; margin-top:10px;">
+        <input type="password" id="gate-key" placeholder="DASHBOARD_API_KEY from .env">
+        <button class="btn-ghost" style="width:100%" onclick="connectWithKey()">Connect with API Key</button>
+      </div>
       <a id="gate-invite-link" href="#" target="_blank" style="display:none; margin-top:16px; font-size:12px; color:var(--text-dim);">Don't have the bot yet? Add it to a server →</a>
     </div>
 
@@ -1025,6 +1122,20 @@ async function api(path, opts = {}) {
   return json;
 }
 
+function formatHoloNumber(n) {
+  if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "") + "k";
+  return String(n);
+}
+
+async function loadHoloStats() {
+  try {
+    const stats = await fetch(API_URL + "/api/public-stats").then(r => r.json());
+    if (!stats.ok) return;
+    document.getElementById("holo-stat-servers").textContent = formatHoloNumber(stats.servers);
+    document.getElementById("holo-stat-members").textContent = formatHoloNumber(stats.members);
+  } catch (e) { /* holo just keeps its placeholder dashes — not worth surfacing an error for */ }
+}
+
 async function checkBackend() {
   const url = document.getElementById("gate-url").value.trim().replace(/\/$/, "");
   const errEl = document.getElementById("gate-error");
@@ -1042,7 +1153,9 @@ async function checkBackend() {
     const authCfg = await fetch(API_URL + "/api/auth-config").then(r => r.json()).catch(() => ({ oauthConfigured: false }));
     if (!authCfg.oauthConfigured) {
       document.getElementById("discord-login-btn").style.display = "none";
-      document.querySelector("#gate-step-login p").textContent = "Discord login isn't configured yet — use an API key:";
+      document.getElementById("gate-key-toggle").style.display = "none";
+      document.getElementById("gate-key-panel").style.display = "block";
+      document.getElementById("gate-subtitle").textContent = "Discord login isn't configured — connect with an API key";
     } else {
       window._authCfg = authCfg;
     }
@@ -1053,6 +1166,7 @@ async function checkBackend() {
         el.style.display = "block";
       }
     }
+    loadHoloStats();
   } catch (e) {
     errEl.innerHTML = `Couldn't reach: <b>${API_URL}/api/ping</b><br>Error: ${e.message}<br><br>Tap to test directly: <a href="${API_URL}/api/ping" target="_blank" style="color:var(--ice-light)">${API_URL}/api/ping</a>`;
   }

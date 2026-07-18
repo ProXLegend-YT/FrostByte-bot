@@ -292,8 +292,7 @@
     <a href="#" id="nav-invite-link">Invite</a>
   </div>
   <div class="nav-cta">
-    <a href="dashboard.html" class="btn btn-secondary">Dashboard</a>
-    <a href="#" id="nav-add-btn" class="btn btn-primary">Add to Discord</a>
+    <a href="dashboard.html" class="btn btn-primary">Open Dashboard</a>
   </div>
 </nav>
 
@@ -302,8 +301,7 @@
   <h1>A Discord bot<br><span class="grad">built for winter.</span></h1>
   <p class="lede">Moderation, economy, tickets, AI chat, and more — all in one bot, free to run on your server.</p>
   <div class="hero-ctas">
-    <a href="#" id="hero-add-btn" class="btn btn-primary">❄️ Add Frostbyte to Discord</a>
-    <a href="dashboard.html" class="btn btn-secondary">Open Dashboard →</a>
+    <a href="dashboard.html" class="btn btn-primary">Open Dashboard →</a>
   </div>
   <div class="hero-stats">
     <div class="hero-stat"><div class="n" id="stat-servers">—</div><div class="l">Servers</div></div>
@@ -601,7 +599,7 @@ async function loadInviteUrl() {
     // "Add to Discord" buttons open the permission picker instead of
     // jumping straight to a fixed link — this is the part we can actually
     // build to match Sapphire's flow (pick permissions, then continue).
-    for (const id of ["nav-add-btn", "hero-add-btn", "cta-add-btn", "nav-invite-link", "footer-invite-link"]) {
+    for (const id of ["cta-add-btn", "nav-invite-link", "footer-invite-link"]) {
       const el = document.getElementById(id);
       if (!el) continue;
       el.href = "#";

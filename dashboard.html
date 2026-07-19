@@ -615,9 +615,9 @@
       </div>
 
       <button class="btn-primary" id="discord-login-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; background:#5865F2; color:#fff; margin-top:18px;" onclick="loginWithDiscord()">
-        💬 Log in with Discord
+        ❄️ Add Bot to Your Server
       </button>
-      <p style="font-size:11px; margin-top:10px; color:var(--text-dim);">You'll pick which of your servers to manage after logging in.</p>
+      <p style="font-size:11px; margin-top:10px; color:var(--text-dim);">Pick your server on Discord's screen — you'll land straight in its control panel.</p>
 
       <div id="gate-key-toggle" style="margin-top:18px;">
         <button type="button" onclick="document.getElementById('gate-key-panel').style.display='block'; this.style.display='none';"
@@ -629,7 +629,6 @@
         <input type="password" id="gate-key" placeholder="DASHBOARD_API_KEY from .env">
         <button class="btn-ghost" style="width:100%" onclick="connectWithKey()">Connect with API Key</button>
       </div>
-      <a id="gate-invite-link" href="#" target="_blank" style="display:none; margin-top:16px; font-size:12px; color:var(--text-dim);">Don't have the bot yet? Add it to a server →</a>
     </div>
 
     <div id="gate-step-guild" style="display:none">
@@ -658,9 +657,12 @@
 
 <div class="sidebar" id="sidebar">
   <a href="landing.html" class="brand"><span class="flake">❄️</span> Frostbyte</a>
-  <button id="server-badge" onclick="switchServer()" title="Switch server" style="width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; text-align:left; background:var(--panel-2); border:1px solid var(--border); color:var(--text); border-radius:10px; padding:9px 11px; font-size:12.5px; font-weight:600; margin:2px 0 14px; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; transition:border-color 0.15s ease, background 0.15s ease;" onmouseover="this.style.borderColor='var(--border-hover)'" onmouseout="this.style.borderColor='var(--border)'">
+  <button id="server-badge" onclick="switchServer()" title="Switch server" style="width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; text-align:left; background:var(--panel-2); border:1px solid var(--border); color:var(--text); border-radius:10px; padding:9px 11px; font-size:12.5px; font-weight:600; margin:2px 0 8px; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; transition:border-color 0.15s ease, background 0.15s ease;" onmouseover="this.style.borderColor='var(--border-hover)'" onmouseout="this.style.borderColor='var(--border)'">
     <span id="server-badge-name" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Select a server</span>
     <span style="color:var(--text-dim); flex-shrink:0;">▾</span>
+  </button>
+  <button onclick="addBotToAnotherServer()" title="Add Frostbyte to another server" style="width:100%; display:flex; align-items:center; justify-content:center; gap:6px; background:none; border:1px dashed var(--border); color:var(--text-dim); border-radius:10px; padding:8px 11px; font-size:12px; font-weight:600; margin-bottom:14px; cursor:pointer; transition:border-color 0.15s ease, color 0.15s ease;" onmouseover="this.style.borderColor='var(--ice)'; this.style.color='var(--ice-light)'" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-dim)'">
+    ➕ Add to another server
   </button>
 
   <div class="nav-section-lbl">Dashboard</div>
@@ -1262,7 +1264,7 @@ async function checkBackend() {
       window._authCfg = authCfg;
     }
     if (authCfg.inviteUrl) {
-      for (const id of ["gate-invite-link", "gate-invite-link-2"]) {
+      for (const id of ["gate-invite-link-2"]) {
         const el = document.getElementById(id);
         el.href = authCfg.inviteUrl;
         el.style.display = "block";
@@ -1277,13 +1279,35 @@ async function checkBackend() {
 function loginWithDiscord() {
   const cfg = window._authCfg;
   if (!cfg?.redirectUri) { toast("OAuth not configured on the backend", true); return; }
+  // Requesting "bot" alongside "identify" makes Discord show its own
+  // add-bot screen (server picker + permission consent — the same screen
+  // Discord always renders for that scope, not something we can restyle)
+  // while ALSO authenticating the user in the same step. Discord redirects
+  // back to our callback either way, which exchanges the code and logs
+  // them into the dashboard — so one click both adds the bot (if it isn't
+  // already in the chosen server) and signs them in.
   const params = new URLSearchParams({
     client_id: cfg.clientId,
     redirect_uri: cfg.redirectUri,
     response_type: "code",
-    scope: "identify",
+    scope: "identify bot applications.commands",
+    permissions: "8", // Administrator — simplest, works with every command
   });
   window.location.href = `https://discord.com/oauth2/authorize?${params.toString()}`;
+}
+
+// Used from inside the dashboard for "add to another server" — same idea,
+// but the user is already logged in, so this only needs the bot scope,
+// not identify again.
+function addBotToAnotherServer() {
+  const cfg = window._authCfg;
+  if (!cfg?.clientId) { toast("Backend not connected yet", true); return; }
+  const params = new URLSearchParams({
+    client_id: cfg.clientId,
+    scope: "bot applications.commands",
+    permissions: "8",
+  });
+  window.open(`https://discord.com/oauth2/authorize?${params.toString()}`, "_blank");
 }
 
 async function connectWithKey() {

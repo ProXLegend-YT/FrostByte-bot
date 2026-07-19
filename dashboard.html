@@ -181,6 +181,31 @@
   .page.active { display: block; }
   @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
+  /* ── Page-load progress bar ──
+     A thin bar across the very top of the viewport, shown while a page's
+     data is being fetched after a nav click. Deliberately not a full-screen
+     blocking spinner — that would make every click feel heavier than it is,
+     most of these loads finish in well under a second. */
+  #page-loader {
+    position: fixed; top: 0; left: 0; height: 2.5px; width: 0%; z-index: 300;
+    background: linear-gradient(90deg, var(--ice), var(--cyan));
+    box-shadow: 0 0 8px rgba(56,189,248,0.8);
+    transition: width 0.25s ease, opacity 0.3s ease;
+    opacity: 0; pointer-events: none;
+  }
+  #page-loader.active { opacity: 1; width: 70%; transition: width 3s cubic-bezier(0.1,0.7,0.5,1), opacity 0.2s ease; }
+  #page-loader.done { opacity: 0; width: 100%; transition: width 0.2s ease, opacity 0.4s ease 0.15s; }
+
+  /* Skeleton placeholder shown inside a page while its first load is in
+     flight, so switching pages never shows a blank flash before content
+     (or the previous page's stale content) appears. */
+  .skeleton-line { height: 14px; border-radius: 6px; background: linear-gradient(90deg, var(--panel-2) 25%, rgba(255,255,255,0.06) 50%, var(--panel-2) 75%); background-size: 200% 100%; animation: skeletonShine 1.4s ease-in-out infinite; margin-bottom: 10px; }
+  @keyframes skeletonShine { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    #page-loader { transition: none; }
+    .skeleton-line { animation: none; }
+  }
+
   @media (max-width: 880px) {
     body { flex-direction: column; }
     .topbar { display: flex; }
@@ -645,6 +670,8 @@
 
 <div class="bg-fx"><div class="grid"></div><div class="orb orb1"></div><div class="orb orb2"></div><div class="scanline"></div></div>
 
+<div id="page-loader"></div>
+
 <div class="topbar">
   <a href="landing.html" class="brand"><span class="flake">❄️</span> Frostbyte</a>
   <div class="hamburger" id="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></div>
@@ -663,6 +690,7 @@
 
   <div class="nav-section-lbl">Dashboard</div>
   <div class="nav-item active" data-page="overview" onclick="showPage('overview')"><span class="ic">📊</span> Overview</div>
+  <div class="nav-item" data-page="commands" onclick="showPage('commands')"><span class="ic">🎛️</span> Commands</div>
   <div class="nav-item" data-page="logs" onclick="showPage('logs')"><span class="ic">📜</span> Logs</div>
 
   <div class="nav-section-lbl">Moderation</div>
@@ -756,6 +784,16 @@
     <div class="card">
       <div class="card-title"><span><span class="live-pulse" style="margin-right:8px"></span>Recent Activity</span> <button class="btn-ghost btn-sm" onclick="showPage('logs')">View all →</button></div>
       <div id="overview-activity" class="log-feed" style="max-height:340px"><div class="empty-state">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- COMMANDS -->
+  <div class="page" id="page-commands">
+    <h1>Commands</h1>
+    <div class="subtitle">Turn any command group off for this server — members won't be able to use it at all while it's off.</div>
+    <div class="card">
+      <div class="card-title">All Commands</div>
+      <div id="commands-list"></div>
     </div>
   </div>
 
@@ -1236,6 +1274,16 @@ async function loadHoloStats() {
   } catch (e) { /* holo just keeps its placeholder dashes — not worth surfacing an error for */ }
 }
 
+async function loadAuthConfig() {
+  try {
+    const authCfg = await fetch(API_URL + "/api/auth-config").then(r => r.json());
+    if (authCfg.oauthConfigured) window._authCfg = authCfg;
+    return authCfg;
+  } catch (e) {
+    return { oauthConfigured: false };
+  }
+}
+
 async function checkBackend() {
   const url = document.getElementById("gate-url").value.trim().replace(/\/$/, "");
   const errEl = document.getElementById("gate-error");
@@ -1250,14 +1298,12 @@ async function checkBackend() {
     document.getElementById("gate-step-login").style.display = "block";
     document.getElementById("gate-subtitle").textContent = ping.botOnline ? "Bot is online — log in to continue" : "Backend reached, but bot is offline";
 
-    const authCfg = await fetch(API_URL + "/api/auth-config").then(r => r.json()).catch(() => ({ oauthConfigured: false }));
+    const authCfg = await loadAuthConfig();
     if (!authCfg.oauthConfigured) {
       document.getElementById("discord-login-btn").style.display = "none";
       document.getElementById("gate-key-toggle").style.display = "none";
       document.getElementById("gate-key-panel").style.display = "block";
       document.getElementById("gate-subtitle").textContent = "Discord login isn't configured — connect with an API key";
-    } else {
-      window._authCfg = authCfg;
     }
     loadHoloStats();
   } catch (e) {
@@ -1288,9 +1334,10 @@ function loginWithDiscord() {
 // Used from inside the dashboard for "add to another server" — same idea,
 // but the user is already logged in, so this only needs the bot scope,
 // not identify again.
-function addBotToAnotherServer() {
-  const cfg = window._authCfg;
-  if (!cfg?.clientId) { toast("Backend not connected yet", true); return; }
+async function addBotToAnotherServer() {
+  let cfg = window._authCfg;
+  if (!cfg?.clientId) cfg = await loadAuthConfig(); // one retry in case it hasn't loaded yet
+  if (!cfg?.clientId) { toast("Couldn't reach the backend — check your connection and try again", true); return; }
   const params = new URLSearchParams({
     client_id: cfg.clientId,
     scope: "bot applications.commands",
@@ -1403,16 +1450,38 @@ function showPage(name) {
   document.getElementById("page-" + name).classList.add("active");
   document.querySelector(`.nav-item[data-page="${name}"]`).classList.add("active");
   const loaders = {
-    overview: loadOverview, security: loadSecurity, permissions: loadPermissions, automod: loadAutomod,
+    overview: loadOverview, commands: loadCommands, security: loadSecurity, permissions: loadPermissions, automod: loadAutomod,
     shop: loadShop, builder: loadBuilderChannels, leaderboards: loadLeaderboards, tickets: loadTickets,
     settings: loadSettings, logs: loadLogs, roles: loadRolesPage, fun: loadFunPage, customcmds: loadCustomCmds,
     verify: loadVerify, giveaways: loadGiveawaysPage, community: loadCommunityPage,
     botcontrol: loadBotControl, messages: loadMessages, youtube: loadYoutube, admintools: loadAdminTools,
   };
-  if (loaders[name]) loaders[name]();
+  if (loaders[name]) {
+    runWithPageLoader(loaders[name]);
+  }
   if (name === "logs") startLogsPolling(); else stopLogsPolling();
   toggleSidebar(false);
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// Shows the top progress bar for the duration of a page's data fetch.
+// Kept short and non-blocking on purpose — the bar starts immediately
+// (so clicking never feels unacknowledged) and snaps to 100% the moment
+// the loader resolves, rather than a fixed-duration fake animation.
+let pageLoaderTimeout = null;
+async function runWithPageLoader(loaderFn) {
+  const bar = document.getElementById("page-loader");
+  clearTimeout(pageLoaderTimeout);
+  bar.classList.remove("done");
+  void bar.offsetWidth; // restart the CSS transition if triggered again quickly
+  bar.classList.add("active");
+  try {
+    await loaderFn();
+  } finally {
+    bar.classList.remove("active");
+    bar.classList.add("done");
+    pageLoaderTimeout = setTimeout(() => bar.classList.remove("done"), 500);
+  }
 }
 
 function toggleSidebar(force) {
@@ -1542,6 +1611,38 @@ async function toggleSecurity(key, enabled) {
     await api("/api/security", { method: "POST", body: JSON.stringify({ [key]: { enabled } }) });
     toast(`${key} ${enabled ? "enabled" : "disabled"}`);
   } catch (e) { toast("Failed: " + e.message, true); loadSecurity(); }
+}
+
+// ── Commands (enable/disable) ──
+async function loadCommands() {
+  const listEl = document.getElementById("commands-list");
+  listEl.innerHTML = `<div class="skeleton-line" style="width:100%"></div><div class="skeleton-line" style="width:90%"></div><div class="skeleton-line" style="width:95%"></div>`;
+  try {
+    const commands = await api("/api/commands");
+    listEl.innerHTML = commands.map(c => `
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--border);">
+        <div style="min-width:0;">
+          <div style="font-weight:700; font-size:14px;">/${c.name}${c.name === "permissions" ? ' <span style="font-size:10px; color:var(--text-dim); font-weight:600;">(always on)</span>' : ""}</div>
+          <div style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">${c.desc}</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" ${c.enabled ? "checked" : ""} ${c.name === "permissions" ? "disabled" : ""} onchange="toggleCommand('${c.name}', this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>`).join("");
+  } catch (e) {
+    listEl.innerHTML = `<div class="empty-state">Couldn't load commands: ${e.message}</div>`;
+  }
+}
+
+async function toggleCommand(name, enabled) {
+  try {
+    await api("/api/commands/toggle", { method: "POST", body: JSON.stringify({ name, enabled }) });
+    toast(`/${name} turned ${enabled ? "on" : "off"}`);
+  } catch (e) {
+    toast("Failed: " + e.message, true);
+    loadCommands(); // revert the toggle visually if the save failed
+  }
 }
 
 // ── Permissions ──
@@ -2150,6 +2251,7 @@ async function removeSuggestion(index) {
   if (!API_URL) return; // first visit — user needs to enter backend URL manually
 
   document.getElementById("gate-url").value = API_URL;
+  await loadAuthConfig(); // needed for Add Bot / Add Another Server regardless of which path below runs
   if (SESSION_TOKEN || API_KEY) {
     try {
       const me = await api("/api/me");

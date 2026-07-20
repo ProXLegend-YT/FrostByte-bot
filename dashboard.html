@@ -343,6 +343,10 @@
   .slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; top: 3px; background: #64748b; border-radius: 50%; transition: 0.2s; }
   input:checked + .slider { background: rgba(56,189,248,0.25); }
   input:checked + .slider:before { background: var(--ice); transform: translateX(18px); box-shadow: 0 0 8px var(--ice); }
+  .switch-sm { width: 32px; height: 18px; }
+  .switch-sm .slider:before { height: 13px; width: 13px; }
+  .switch-sm input:checked + .slider:before { transform: translateX(14px); }
+  .switch input:disabled + .slider { opacity: 0.4; cursor: not-allowed; }
 
   input[type=text], input[type=number], input[type=password], input[type=url], select, textarea {
     background: #0a1622;
@@ -398,6 +402,14 @@
   .empty-state { text-align: center; padding: 30px 20px; color: var(--text-dim); font-size: 13px; }
 
   .badge-tag { background: rgba(56,189,248,0.1); color: var(--ice-light); padding: 2px 8px; border-radius: 5px; font-size: 11px; font-family: 'IBM Plex Mono', monospace; }
+  .var-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .var-chip {
+    background: rgba(56,189,248,0.1); color: var(--ice-light); border: 1px solid rgba(56,189,248,0.25);
+    padding: 3px 9px; border-radius: 999px; font-size: 11px; font-family: 'IBM Plex Mono', monospace;
+    cursor: pointer; transition: background 0.15s ease, transform 0.1s ease;
+  }
+  .var-chip:hover { background: rgba(56,189,248,0.2); }
+  .var-chip:active { transform: scale(0.95); }
   .word-chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25); color: #fca5a5; padding: 4px 10px; border-radius: 20px; font-size: 12px; margin: 3px; }
   .word-chip button { background: none; border: none; color: #fca5a5; font-size: 14px; padding: 0; cursor: pointer; line-height: 1; }
 
@@ -595,7 +607,7 @@
 
 <div class="gate" id="gate">
   <div class="gate-card card">
-    <a href="landing.html" style="display:inline-block; font-size:12px; color:var(--text-dim); text-decoration:none; margin-bottom:14px;" onmouseover="this.style.color='var(--ice-light)'" onmouseout="this.style.color='var(--text-dim)'">← Back to site</a>
+    <a href="landing.html" target="_blank" style="display:inline-block; font-size:12px; color:var(--text-dim); text-decoration:none; margin-bottom:14px;" onmouseover="this.style.color='var(--ice-light)'" onmouseout="this.style.color='var(--text-dim)'">← Back to site</a>
     <div class="flake">❄️</div>
     <h2>Frostbyte Control Panel</h2>
     <p id="gate-subtitle">Connect to your bot's backend first</p>
@@ -643,6 +655,10 @@
         ❄️ Add Bot to Your Server
       </button>
       <p style="font-size:11px; margin-top:10px; color:var(--text-dim);">Pick your server on Discord's screen — you'll land straight in its control panel.</p>
+
+      <button class="btn-ghost" id="already-added-btn" style="width:100%; margin-top:10px;" onclick="loginOnly()">
+        Already added the bot? Log in
+      </button>
 
       <div id="gate-key-toggle" style="margin-top:18px;">
         <button type="button" onclick="document.getElementById('gate-key-panel').style.display='block'; this.style.display='none';"
@@ -721,7 +737,7 @@
 
   <div class="sidebar-foot">
     <div><span class="conn-dot off" id="conn-dot"></span><span id="conn-text">Not connected</span></div>
-    <a href="landing.html" style="display:block; margin-top:8px; color:var(--text-dim); text-decoration:none;" onmouseover="this.style.color='var(--ice-light)'" onmouseout="this.style.color='var(--text-dim)'">← Back to site</a>
+    <a href="landing.html" target="_blank" style="display:block; margin-top:8px; color:var(--text-dim); text-decoration:none;" onmouseover="this.style.color='var(--ice-light)'" onmouseout="this.style.color='var(--text-dim)'">← Back to site</a>
     <div id="sidebar-version" style="margin-top:4px; opacity:0.6;"></div>
   </div>
 </div>
@@ -790,9 +806,12 @@
   <!-- COMMANDS -->
   <div class="page" id="page-commands">
     <h1>Commands</h1>
-    <div class="subtitle">Turn any command group off for this server — members won't be able to use it at all while it's off.</div>
+    <div class="subtitle">Turn a whole command group off, or tap one to expand it and turn off individual subcommands — either way, members won't be able to use it while it's off.</div>
     <div class="card">
-      <div class="card-title">All Commands</div>
+      <div class="card-title">
+        All Commands
+        <input type="text" id="commands-search" placeholder="Search commands…" style="max-width:220px; margin:0;" oninput="renderCommands(this.value)">
+      </div>
       <div id="commands-list"></div>
     </div>
   </div>
@@ -1101,6 +1120,23 @@
         <div style="flex:1"><label class="field-label">Member role</label><select id="set-memberrole" style="width:100%"><option value="">— none —</option></select></div>
       </div>
     </div>
+    <div class="card">
+      <div class="card-title">Links <span style="font-weight:400; color:var(--text-dim); font-size:12px;">— shown by /info links</span></div>
+      <div class="field-group">
+        <label class="field-label">Dashboard URL</label>
+        <input type="text" id="links-dashboard" style="width:100%" placeholder="Uses the bot's default if left blank">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Website URL</label>
+        <input type="text" id="links-website" style="width:100%" placeholder="e.g. https://your-site.com — leave blank to hide this button">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Support Server invite</label>
+        <input type="text" id="links-support" style="width:100%" placeholder="e.g. https://discord.gg/your-invite — leave blank to hide this button">
+      </div>
+      <p style="font-size:11.5px; color:var(--text-dim); margin:-6px 0 14px;">The invite link (add-bot button) always uses the bot's real invite automatically — nothing to set here.</p>
+      <button class="btn-primary" onclick="saveLinks()">💾 Save links</button>
+    </div>
     <button class="btn-primary" onclick="saveSettings()">💾 Save settings</button>
   </div>
 
@@ -1138,17 +1174,23 @@
   <!-- MESSAGE CUSTOMIZATION -->
   <div class="page" id="page-messages">
     <h1>Messages</h1>
-    <div class="subtitle">Customize the welcome and leave messages — use {user}, {username}, {server}, {membercount}, {inviter}</div>
+    <div class="subtitle">Customize the welcome and leave messages. Leave a section off and the built-in default below is used instead — nothing sent is ever blank.</div>
     <div class="card">
       <div class="toggle-row">
         <div><div class="toggle-label">Custom Welcome Message</div><div class="toggle-desc">Override the greeting line and embed text when someone joins</div></div>
         <label class="switch"><input type="checkbox" id="msg-welcome-enabled" onchange="saveMessages()"><span class="slider"></span></label>
       </div>
       <div class="field-group"><label class="field-label">Greeting line (message content)</label><input type="text" id="msg-welcome-content" style="width:100%" placeholder="🎊 Welcome to the server, {user}!"></div>
-      <div class="field-group"><label class="field-label">Embed description</label><textarea id="msg-welcome-text" rows="4" style="width:100%" placeholder="Hey {user}, welcome to {server}! You're member #{membercount}."></textarea></div>
+      <div class="field-group">
+        <label class="field-label">Embed description</label>
+        <textarea id="msg-welcome-text" rows="4" style="width:100%" placeholder="Hey {user}, welcome to {server}! You're member #{membercount}."></textarea>
+        <div class="var-chip-row" data-target="msg-welcome-text"></div>
+      </div>
+      <div class="field-group"><label class="field-label">Embed color</label><input type="color" id="msg-welcome-color" style="width:70px; height:36px; padding:2px; cursor:pointer;" onchange="saveMessages()"></div>
       <div class="row" style="margin-bottom:0">
         <div style="flex:1"><label class="field-label">Test in channel</label><select id="msg-welcome-testchannel" style="width:100%"></select></div>
         <button class="btn-ghost" style="align-self:flex-end" onclick="testMessage('welcome')">🧪 Send Test</button>
+        <button class="btn-ghost" style="align-self:flex-end" onclick="resetMessageDefault('welcome')">↺ Reset to default</button>
       </div>
     </div>
     <div class="card">
@@ -1157,10 +1199,16 @@
         <label class="switch"><input type="checkbox" id="msg-leave-enabled" onchange="saveMessages()"><span class="slider"></span></label>
       </div>
       <div class="field-group"><label class="field-label">Message content (optional)</label><input type="text" id="msg-leave-content" style="width:100%" placeholder="Leave blank for none"></div>
-      <div class="field-group"><label class="field-label">Embed description</label><textarea id="msg-leave-text" rows="4" style="width:100%" placeholder="{username} has left {server}. We now have {membercount} members."></textarea></div>
+      <div class="field-group">
+        <label class="field-label">Embed description</label>
+        <textarea id="msg-leave-text" rows="4" style="width:100%" placeholder="{username} has left {server}. We now have {membercount} members."></textarea>
+        <div class="var-chip-row" data-target="msg-leave-text"></div>
+      </div>
+      <div class="field-group"><label class="field-label">Embed color</label><input type="color" id="msg-leave-color" style="width:70px; height:36px; padding:2px; cursor:pointer;" onchange="saveMessages()"></div>
       <div class="row" style="margin-bottom:0">
         <div style="flex:1"><label class="field-label">Test in channel</label><select id="msg-leave-testchannel" style="width:100%"></select></div>
         <button class="btn-ghost" style="align-self:flex-end" onclick="testMessage('leave')">🧪 Send Test</button>
+        <button class="btn-ghost" style="align-self:flex-end" onclick="resetMessageDefault('leave')">↺ Reset to default</button>
       </div>
     </div>
     <button class="btn-primary" onclick="saveMessages()">💾 Save messages</button>
@@ -1301,6 +1349,7 @@ async function checkBackend() {
     const authCfg = await loadAuthConfig();
     if (!authCfg.oauthConfigured) {
       document.getElementById("discord-login-btn").style.display = "none";
+      document.getElementById("already-added-btn").style.display = "none";
       document.getElementById("gate-key-toggle").style.display = "none";
       document.getElementById("gate-key-panel").style.display = "block";
       document.getElementById("gate-subtitle").textContent = "Discord login isn't configured — connect with an API key";
@@ -1327,6 +1376,22 @@ function loginWithDiscord() {
     response_type: "code",
     scope: "identify bot applications.commands",
     permissions: "8", // Administrator — simplest, works with every command
+  });
+  window.location.href = `https://discord.com/oauth2/authorize?${params.toString()}`;
+}
+
+// For people who already added the bot somewhere and just want to check
+// their dashboard — skips Discord's "add a bot to a server" consent
+// entirely (pure identify scope), landing straight on the guild picker
+// with whichever servers they already manage with the bot in them.
+function loginOnly() {
+  const cfg = window._authCfg;
+  if (!cfg?.redirectUri) { toast("OAuth not configured on the backend", true); return; }
+  const params = new URLSearchParams({
+    client_id: cfg.clientId,
+    redirect_uri: cfg.redirectUri,
+    response_type: "code",
+    scope: "identify",
   });
   window.location.href = `https://discord.com/oauth2/authorize?${params.toString()}`;
 }
@@ -1614,34 +1679,79 @@ async function toggleSecurity(key, enabled) {
 }
 
 // ── Commands (enable/disable) ──
+let COMMANDS_CACHE = [];
+
 async function loadCommands() {
   const listEl = document.getElementById("commands-list");
   listEl.innerHTML = `<div class="skeleton-line" style="width:100%"></div><div class="skeleton-line" style="width:90%"></div><div class="skeleton-line" style="width:95%"></div>`;
   try {
-    const commands = await api("/api/commands");
-    listEl.innerHTML = commands.map(c => `
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--border);">
-        <div style="min-width:0;">
-          <div style="font-weight:700; font-size:14px;">/${c.name}${c.name === "permissions" ? ' <span style="font-size:10px; color:var(--text-dim); font-weight:600;">(always on)</span>' : ""}</div>
-          <div style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">${c.desc}</div>
-        </div>
-        <label class="switch">
-          <input type="checkbox" ${c.enabled ? "checked" : ""} ${c.name === "permissions" ? "disabled" : ""} onchange="toggleCommand('${c.name}', this.checked)">
-          <span class="slider"></span>
-        </label>
-      </div>`).join("");
+    COMMANDS_CACHE = await api("/api/commands");
+    renderCommands();
   } catch (e) {
     listEl.innerHTML = `<div class="empty-state">Couldn't load commands: ${e.message}</div>`;
   }
 }
 
+function renderCommands(filter = "") {
+  const listEl = document.getElementById("commands-list");
+  const q = filter.trim().toLowerCase();
+  const groups = !q ? COMMANDS_CACHE : COMMANDS_CACHE
+    .map(c => ({ ...c, subcommands: c.subcommands.filter(s => `${c.name} ${s.label}`.toLowerCase().includes(q)) }))
+    .filter(c => c.name.toLowerCase().includes(q) || c.desc.toLowerCase().includes(q) || c.subcommands.length);
+
+  if (!groups.length) {
+    listEl.innerHTML = `<div class="empty-state">No commands match "${filter}".</div>`;
+    return;
+  }
+
+  listEl.innerHTML = groups.map(c => {
+    const disabledSubCount = c.subcommands.filter(s => !s.enabled).length;
+    return `
+    <div class="cmd-group" data-group="${c.name}" style="border-bottom:1px solid var(--border);">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; cursor:pointer;" onclick="toggleCmdGroupOpen('${c.name}')">
+        <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+          <span class="cmd-group-caret" style="display:inline-block; transition:transform 0.18s ease; color:var(--text-dim); font-size:11px;">▶</span>
+          <div style="min-width:0;">
+            <div style="font-weight:700; font-size:14px;">/${c.name}${c.name === "permissions" ? ' <span style="font-size:10px; color:var(--text-dim); font-weight:600;">(always on)</span>' : ""}</div>
+            <div style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">${c.desc}${disabledSubCount ? ` · <span style="color:var(--warn)">${disabledSubCount} subcommand${disabledSubCount > 1 ? "s" : ""} off</span>` : ""}</div>
+          </div>
+        </div>
+        <label class="switch" onclick="event.stopPropagation()">
+          <input type="checkbox" ${c.enabled ? "checked" : ""} ${c.name === "permissions" ? "disabled" : ""} onchange="toggleCommand('${c.name}', this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="cmd-group-subs" style="display:none; padding:0 0 12px 24px; flex-direction:column; gap:2px;">
+        ${c.subcommands.map(s => `
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 0;">
+            <span style="font-size:12.5px; color:${s.enabled ? "var(--text-muted)" : "var(--text-dim)"};">/${c.name} ${s.label}</span>
+            <label class="switch switch-sm">
+              <input type="checkbox" ${s.enabled ? "checked" : ""} ${!c.enabled ? "disabled" : ""} onchange="toggleCommand('${s.route}', this.checked)">
+              <span class="slider"></span>
+            </label>
+          </div>`).join("")}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function toggleCmdGroupOpen(name) {
+  const group = document.querySelector(`.cmd-group[data-group="${name}"]`);
+  const subs = group.querySelector(".cmd-group-subs");
+  const caret = group.querySelector(".cmd-group-caret");
+  const open = subs.style.display === "flex";
+  subs.style.display = open ? "none" : "flex";
+  caret.style.transform = open ? "rotate(0deg)" : "rotate(90deg)";
+}
+
 async function toggleCommand(name, enabled) {
   try {
     await api("/api/commands/toggle", { method: "POST", body: JSON.stringify({ name, enabled }) });
-    toast(`/${name} turned ${enabled ? "on" : "off"}`);
+    toast(`/${name.replace(/\./g, " ")} turned ${enabled ? "on" : "off"}`);
+    await loadCommands(); // re-fetch so group counts / cascaded subcommand states stay accurate
   } catch (e) {
     toast("Failed: " + e.message, true);
-    loadCommands(); // revert the toggle visually if the save failed
+    loadCommands();
   }
 }
 
@@ -1808,7 +1918,7 @@ async function loadTickets() {
 // ── Settings ──
 async function loadSettings() {
   try {
-    const [settings, channels, roles] = await Promise.all([api("/api/settings"), api("/api/channels"), api("/api/roles")]);
+    const [settings, channels, roles, links] = await Promise.all([api("/api/settings"), api("/api/channels"), api("/api/roles"), api("/api/links")]);
     const chanOpts = (selected) => `<option value="">— none —</option>` + channels.map(c => `<option value="${c.id}" ${c.id === selected ? "selected" : ""}>#${c.name}</option>`).join("");
     const roleOpts = (selected) => `<option value="">— none —</option>` + roles.map(r => `<option value="${r.id}" ${r.id === selected ? "selected" : ""}>${r.name}</option>`).join("");
 
@@ -1821,6 +1931,11 @@ async function loadSettings() {
     document.getElementById("set-modrole").innerHTML = roleOpts(settings.modRole);
     document.getElementById("set-muterole").innerHTML = roleOpts(settings.muteRole);
     document.getElementById("set-memberrole").innerHTML = roleOpts(settings.memberRole);
+
+    document.getElementById("links-dashboard").value = links.dashboard || "";
+    document.getElementById("links-dashboard").placeholder = links.dashboardPlaceholder ? `Default: ${links.dashboardPlaceholder}` : "Uses the bot's default if left blank";
+    document.getElementById("links-website").value = links.website || "";
+    document.getElementById("links-support").value = links.supportServer || "";
   } catch (e) { toast("Settings load failed: " + e.message, true); }
 }
 async function saveSettings() {
@@ -1836,6 +1951,15 @@ async function saveSettings() {
     memberRole: document.getElementById("set-memberrole").value,
   };
   try { await api("/api/settings", { method: "POST", body: JSON.stringify(body) }); toast("✅ Settings saved"); }
+  catch (e) { toast("Save failed: " + e.message, true); }
+}
+async function saveLinks() {
+  const body = {
+    dashboard: document.getElementById("links-dashboard").value.trim(),
+    website: document.getElementById("links-website").value.trim(),
+    supportServer: document.getElementById("links-support").value.trim(),
+  };
+  try { await api("/api/links", { method: "POST", body: JSON.stringify(body) }); toast("✅ Links saved"); }
   catch (e) { toast("Save failed: " + e.message, true); }
 }
 
@@ -1875,18 +1999,45 @@ async function botControlPresence() {
 }
 
 // ── Message Customization ──
+const MSG_VARS = [
+  { key: "{user}", desc: "mentions them" },
+  { key: "{username}", desc: "just their name" },
+  { key: "{server}", desc: "server name" },
+  { key: "{membercount}", desc: "member count" },
+  { key: "{inviter}", desc: "who invited them (welcome only)" },
+];
+
+function renderVarChips() {
+  document.querySelectorAll(".var-chip-row").forEach(row => {
+    const targetId = row.dataset.target;
+    row.innerHTML = MSG_VARS.map(v => `<span class="var-chip" title="${v.desc}" onclick="insertVar('${targetId}', '${v.key}')">${v.key}</span>`).join("");
+  });
+}
+
+function insertVar(targetId, key) {
+  const el = document.getElementById(targetId);
+  const start = el.selectionStart ?? el.value.length;
+  const end = el.selectionEnd ?? el.value.length;
+  el.value = el.value.slice(0, start) + key + el.value.slice(end);
+  el.focus();
+  el.selectionStart = el.selectionEnd = start + key.length;
+}
+
 async function loadMessages() {
   try {
     const [tmpl, channels] = await Promise.all([api("/api/messages"), api("/api/channels")]);
     document.getElementById("msg-welcome-enabled").checked = !!tmpl.welcomeEnabled;
     document.getElementById("msg-welcome-content").value = tmpl.welcomeContent || "";
     document.getElementById("msg-welcome-text").value = tmpl.welcomeText || "";
+    document.getElementById("msg-welcome-color").value = tmpl.welcomeColor || "#38bdf8";
     document.getElementById("msg-leave-enabled").checked = !!tmpl.leaveEnabled;
     document.getElementById("msg-leave-content").value = tmpl.leaveContent || "";
     document.getElementById("msg-leave-text").value = tmpl.leaveText || "";
+    document.getElementById("msg-leave-color").value = tmpl.leaveColor || "#0c4a6e";
     const chanOpts = channels.map(c => `<option value="${c.id}">#${c.name}</option>`).join("");
     document.getElementById("msg-welcome-testchannel").innerHTML = chanOpts;
     document.getElementById("msg-leave-testchannel").innerHTML = chanOpts;
+    renderVarChips();
   } catch (e) { toast("Messages load failed: " + e.message, true); }
 }
 async function saveMessages() {
@@ -1894,9 +2045,11 @@ async function saveMessages() {
     welcomeEnabled: document.getElementById("msg-welcome-enabled").checked,
     welcomeContent: document.getElementById("msg-welcome-content").value.trim(),
     welcomeText: document.getElementById("msg-welcome-text").value.trim(),
+    welcomeColor: document.getElementById("msg-welcome-color").value,
     leaveEnabled: document.getElementById("msg-leave-enabled").checked,
     leaveContent: document.getElementById("msg-leave-content").value.trim(),
     leaveText: document.getElementById("msg-leave-text").value.trim(),
+    leaveColor: document.getElementById("msg-leave-color").value,
   };
   try { await api("/api/messages", { method: "POST", body: JSON.stringify(body) }); toast("✅ Messages saved"); }
   catch (e) { toast("Save failed: " + e.message, true); }
@@ -1909,6 +2062,19 @@ async function testMessage(kind) {
     toast("✅ Test message sent");
   } catch (e) { toast("Test failed: " + e.message, true); }
 }
+
+// Clears the custom text/content/color for one section (welcome or leave)
+// and turns it off, so the bot falls back to its built-in default message
+// — a quick way back if custom edits didn't turn out how you wanted.
+async function resetMessageDefault(kind) {
+  document.getElementById(`msg-${kind}-enabled`).checked = false;
+  document.getElementById(`msg-${kind}-content`).value = "";
+  document.getElementById(`msg-${kind}-text`).value = "";
+  document.getElementById(`msg-${kind}-color`).value = kind === "leave" ? "#0c4a6e" : "#38bdf8";
+  await saveMessages();
+  toast(`${kind === "leave" ? "Leave" : "Welcome"} message reset to default`);
+}
+
 
 // ── YouTube Notifications ──
 async function loadYoutube() {
@@ -2236,6 +2402,17 @@ async function removeSuggestion(index) {
 
 // ── On page load: handle OAuth redirect, saved session, or saved API key ──
 (async function bootstrap() {
+  // "Back to site" links use a plain relative href, which always resolves
+  // to wherever THIS page is actually being served from — there's no way
+  // to hardcode that wrong. If it 404s, landing.html genuinely isn't at
+  // the resolved URL below (missing, wrong case, or a different folder on
+  // GitHub Pages). This check makes that instantly checkable in DevTools
+  // instead of needing another round of screenshots to confirm.
+  const landingUrl = new URL("landing.html", window.location.href).href;
+  fetch(landingUrl, { method: "HEAD" })
+    .then(r => console.log(r.ok ? `✅ landing.html found at: ${landingUrl}` : `⚠️ landing.html NOT found at: ${landingUrl} (status ${r.status}) — check it's uploaded to this exact folder on GitHub, with this exact filename/case.`))
+    .catch(() => console.log(`⚠️ Couldn't check landing.html at: ${landingUrl}`));
+
   if (document.getElementById("gate-current-url")) document.getElementById("gate-current-url").textContent = API_URL || "(no URL set)";
   if (HARDCODED_API_URL) document.getElementById("gate-step-url").style.display = "none"; // never show the URL box at all
 

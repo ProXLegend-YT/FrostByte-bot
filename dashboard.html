@@ -1416,7 +1416,26 @@ async function addBotToAnotherServer() {
     scope: "bot applications.commands",
     permissions: "8",
   });
-  window.open(`https://discord.com/oauth2/authorize?${params.toString()}`, "_blank");
+  openDiscordUrlInBrowser(`https://discord.com/oauth2/authorize?${params.toString()}`);
+}
+
+// A real, momentarily-inserted <a target="_blank"> click navigates the way
+// the browser's own "open in new tab" does, which respects the current
+// browsing context more consistently than window.open() on some mobile
+// browsers. This does NOT override Android's own "open supported links in
+// this app" setting for the Discord app, though — if that's turned on for
+// Discord, the OS intercepts discord.com links before the page even loads,
+// regardless of how the link was triggered. Turning that off (Android
+// Settings → Apps → Discord → Open by default → Open in this app: off)
+// is the actual fix for that specific case.
+function openDiscordUrlInBrowser(url) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.target = "_blank";
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 async function connectWithKey() {

@@ -871,7 +871,27 @@
   <!-- TICKETS -->
   <div class="page" id="page-tickets">
     <h1>Tickets</h1>
-    <div class="subtitle">Open support tickets, read-only snapshot</div>
+    <div class="subtitle">Customize the ticket panel and categories, then send it to a channel — fully your own wording, no fixed categories.</div>
+
+    <div class="card">
+      <div class="card-title">Panel</div>
+      <div class="field-group"><label class="field-label">Title</label><input type="text" id="tk-title" style="width:100%" placeholder="Support Tickets"></div>
+      <div class="field-group"><label class="field-label">Description</label><textarea id="tk-description" rows="3" style="width:100%" placeholder="Need help? Select a category below to open a ticket."></textarea></div>
+      <div class="row" style="margin-bottom:0">
+        <div style="flex:1"><label class="field-label">Channel to send panel to</label><select id="tk-send-channel" style="width:100%"></select></div>
+        <button class="btn-primary" style="align-self:flex-end" onclick="sendTicketPanelFromDashboard()">🎫 Send Panel</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        Categories <span style="font-weight:400; color:var(--text-dim); font-size:12px;" id="tk-cat-count"></span>
+        <button class="btn-ghost btn-sm" onclick="addTicketCategory()">+ Add category</button>
+      </div>
+      <div id="tk-categories"></div>
+      <button class="btn-primary" style="margin-top:14px;" onclick="saveTicketConfig()">💾 Save categories</button>
+    </div>
+
     <div class="card">
       <div class="card-title">Open tickets <button class="btn-ghost btn-sm" onclick="loadTickets()">↻ Refresh</button></div>
       <div id="tickets-list">Loading...</div>
@@ -1932,14 +1952,79 @@ async function sendEmbed() {
 }
 
 // ── Tickets ──
+let TICKET_CATEGORIES = [];
+
 async function loadTickets() {
   try {
-    const tickets = await api("/api/tickets");
+    const [tickets, config, channels] = await Promise.all([api("/api/tickets"), api("/api/tickets/config"), api("/api/channels")]);
+
     document.getElementById("tickets-list").innerHTML = tickets.length ? `
       <div class="table-wrap"><table><thead><tr><th>User</th><th>Channel</th><th>Claimed by</th><th>Priority</th></tr></thead><tbody>
       ${tickets.map(t => `<tr><td class="mono">${t.userId}</td><td class="mono">${t.channelId}</td><td>${t.claimedBy ? `<span class="mono">${t.claimedBy}</span>` : '<span style="color:var(--text-dim)">Unclaimed</span>'}</td><td>${t.priority ? `<span class="pill on">${t.priority}</span>` : "—"}</td></tr>`).join("")}
       </tbody></table></div>` : '<div class="empty-state">No open tickets right now.</div>';
+
+    document.getElementById("tk-title").value = config.title || "";
+    document.getElementById("tk-description").value = config.description || "";
+    const chanOpts = channels.map(c => `<option value="${c.id}" ${c.id === config.channelId ? "selected" : ""}>#${c.name}</option>`).join("");
+    document.getElementById("tk-send-channel").innerHTML = chanOpts;
+
+    TICKET_CATEGORIES = config.categories || [];
+    renderTicketCategories();
   } catch (e) { toast("Tickets load failed: " + e.message, true); }
+}
+
+function renderTicketCategories() {
+  document.getElementById("tk-cat-count").textContent = `${TICKET_CATEGORIES.length}/25`;
+  const el = document.getElementById("tk-categories");
+  if (!TICKET_CATEGORIES.length) {
+    el.innerHTML = `<div class="empty-state">No categories yet — add at least one before sending the panel.</div>`;
+    return;
+  }
+  el.innerHTML = TICKET_CATEGORIES.map((c, i) => `
+    <div style="border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:10px;">
+      <div class="row" style="margin-bottom:8px;">
+        <div style="width:60px"><label class="field-label">Emoji</label><input type="text" style="width:100%; text-align:center;" value="${c.emoji || ""}" oninput="TICKET_CATEGORIES[${i}].emoji=this.value"></div>
+        <div style="flex:1"><label class="field-label">Label</label><input type="text" style="width:100%" value="${(c.label || "").replace(/"/g, "&quot;")}" oninput="TICKET_CATEGORIES[${i}].label=this.value"></div>
+        <button class="btn-ghost btn-sm" style="align-self:flex-end" onclick="removeTicketCategory(${i})">🗑️</button>
+      </div>
+      <div class="field-group" style="margin-bottom:8px;"><label class="field-label">Short description (shown in the dropdown)</label><input type="text" style="width:100%" value="${(c.description || "").replace(/"/g, "&quot;")}" oninput="TICKET_CATEGORIES[${i}].description=this.value"></div>
+      <div class="field-group" style="margin-bottom:0;"><label class="field-label">Guidance (shown inside the ticket once opened)</label><textarea rows="2" style="width:100%" oninput="TICKET_CATEGORIES[${i}].guidance=this.value">${c.guidance || ""}</textarea></div>
+    </div>`).join("");
+}
+
+function addTicketCategory() {
+  if (TICKET_CATEGORIES.length >= 25) return toast("Discord allows a maximum of 25 categories.", true);
+  TICKET_CATEGORIES.push({ value: "", label: "New Category", emoji: "🎫", description: "", guidance: "" });
+  renderTicketCategories();
+}
+function removeTicketCategory(i) {
+  TICKET_CATEGORIES.splice(i, 1);
+  renderTicketCategories();
+}
+
+async function saveTicketConfig() {
+  try {
+    await api("/api/tickets/config", {
+      method: "POST",
+      body: JSON.stringify({
+        title: document.getElementById("tk-title").value.trim(),
+        description: document.getElementById("tk-description").value.trim(),
+        categories: TICKET_CATEGORIES,
+      }),
+    });
+    toast("✅ Ticket settings saved");
+    loadTickets(); // re-fetch so auto-generated category values (from labels) show correctly
+  } catch (e) { toast("Save failed: " + e.message, true); }
+}
+
+async function sendTicketPanelFromDashboard() {
+  const channelId = document.getElementById("tk-send-channel").value;
+  if (!channelId) return toast("Pick a channel first.", true);
+  try {
+    await saveTicketConfig(); // make sure the panel reflects any unsaved edits
+    await api("/api/tickets/send-panel", { method: "POST", body: JSON.stringify({ channelId }) });
+    toast("🎫 Ticket panel sent!");
+  } catch (e) { toast("Failed: " + e.message, true); }
 }
 
 // ── Settings ──

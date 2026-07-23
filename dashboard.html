@@ -716,6 +716,7 @@
   <div class="nav-item" data-page="tickets" onclick="showPage('tickets')"><span class="ic">🎫</span> Tickets</div>
 
   <div class="nav-section-lbl">Engagement</div>
+  <div class="nav-item" data-page="music" onclick="showPage('music')"><span class="ic">🎵</span> Music</div>
   <div class="nav-item" data-page="shop" onclick="showPage('shop')"><span class="ic">🛒</span> Shop</div>
   <div class="nav-item" data-page="builder" onclick="showPage('builder')"><span class="ic">🎨</span> Embed Builder</div>
   <div class="nav-item" data-page="leaderboards" onclick="showPage('leaderboards')"><span class="ic">🏆</span> Leaderboards</div>
@@ -996,6 +997,39 @@
     <div class="card">
       <div class="card-title">📨 Invite Leaderboard</div>
       <div class="table-wrap"><table><thead><tr><th>#</th><th>Inviter</th><th>Joins</th><th>Left</th></tr></thead><tbody id="invites-list"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- SHOP -->
+  <!-- MUSIC -->
+  <div class="page" id="page-music">
+    <h1>Music</h1>
+    <div class="subtitle">Live playback control, plus who's allowed to control it and where songs come from.</div>
+
+    <div class="card" id="music-status-card">
+      <div class="card-title">Now Playing <button class="btn-ghost btn-sm" onclick="loadMusicStatus()">↻ Refresh</button></div>
+      <div id="music-status">Loading…</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Settings</div>
+      <div class="field-group"><label class="field-label">Default volume (%)</label><input type="number" id="mus-defaultvol" min="0" max="150" style="width:100%"></div>
+      <div class="field-group"><label class="field-label">DJ role <span style="color:var(--text-dim); font-weight:400;">— leave as "anyone" to let all members control playback</span></label><select id="mus-djrole" style="width:100%"></select></div>
+      <div class="field-group"><label class="field-label">Max queue size</label><input type="number" id="mus-maxqueue" min="1" max="500" style="width:100%"></div>
+      <div class="field-group"><label class="field-label">Auto-leave after idle (minutes)</label><input type="number" id="mus-autoleave" min="0" max="60" style="width:100%"></div>
+      <div class="toggle-row">
+        <div><div class="toggle-label">Allow YouTube</div><div class="toggle-desc">Links and search-by-text</div></div>
+        <label class="switch"><input type="checkbox" id="mus-allowyt"><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-label">Allow direct audio URLs</div><div class="toggle-desc">Radio streams, direct .mp3/.ogg links, etc.</div></div>
+        <label class="switch"><input type="checkbox" id="mus-allowurl"><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row" style="border-bottom:none;">
+        <div><div class="toggle-label">Announce "Now Playing"</div><div class="toggle-desc">Post a message in the requesting channel when a track auto-advances</div></div>
+        <label class="switch"><input type="checkbox" id="mus-announce"><span class="slider"></span></label>
+      </div>
+      <button class="btn-primary" style="margin-top:14px;" onclick="saveMusicSettings()">💾 Save settings</button>
     </div>
   </div>
 
@@ -1563,7 +1597,7 @@ function showPage(name) {
   document.querySelector(`.nav-item[data-page="${name}"]`).classList.add("active");
   const loaders = {
     overview: loadOverview, commands: loadCommands, security: loadSecurity, permissions: loadPermissions, automod: loadAutomod,
-    shop: loadShop, builder: loadBuilderChannels, leaderboards: loadLeaderboards, tickets: loadTickets,
+    shop: loadShop, music: loadMusic, builder: loadBuilderChannels, leaderboards: loadLeaderboards, tickets: loadTickets,
     settings: loadSettings, logs: loadLogs, roles: loadRolesPage, fun: loadFunPage, customcmds: loadCustomCmds,
     verify: loadVerify, giveaways: loadGiveawaysPage, community: loadCommunityPage,
     botcontrol: loadBotControl, messages: loadMessages, youtube: loadYoutube, admintools: loadAdminTools,
@@ -1856,6 +1890,81 @@ function renderShopTypeFields() {
   else el.innerHTML = "";
 }
 renderShopTypeFields();
+
+// ── Music ──
+async function loadMusic() {
+  await Promise.all([loadMusicStatus(), loadMusicSettings()]);
+}
+
+async function loadMusicStatus() {
+  const el = document.getElementById("music-status");
+  try {
+    const s = await api("/api/music/status");
+    if (!s.available) {
+      el.innerHTML = `<div class="empty-state">🎵 Music isn't available on this host — its dependencies failed to install when the bot started. Check the bot's console log for details.</div>`;
+      return;
+    }
+    if (!s.playing) {
+      el.innerHTML = `<div class="empty-state">Nothing playing right now. Use <code>/music play</code> in Discord to start.</div>`;
+      return;
+    }
+    const queueLines = s.queue.slice(0, 8).map((t, i) => `<div style="font-size:12.5px; color:var(--text-muted); padding:4px 0;">${i + 1}. ${t.title}</div>`).join("");
+    el.innerHTML = `
+      <div style="margin-bottom:14px;">
+        <div style="font-weight:700; font-size:15px;">🎵 ${s.current?.title || "—"}</div>
+        <div style="font-size:12px; color:var(--text-dim); margin-top:2px;">Requested by ${s.current?.requestedBy || "—"} • Loop: ${s.loop} • Volume: ${s.volume}%</div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
+        <button class="btn-ghost btn-sm" onclick="musicControl('pause')">⏸️ Pause</button>
+        <button class="btn-ghost btn-sm" onclick="musicControl('resume')">▶️ Resume</button>
+        <button class="btn-ghost btn-sm" onclick="musicControl('skip')">⏭️ Skip</button>
+        <button class="btn-ghost btn-sm" onclick="musicControl('stop')">⏹️ Stop</button>
+        <button class="btn-ghost btn-sm" onclick="musicControl('clear')">🗑️ Clear Queue</button>
+      </div>
+      <div class="field-group" style="max-width:260px;">
+        <label class="field-label">Volume: <span id="mus-vol-display">${s.volume}%</span></label>
+        <input type="range" min="0" max="150" value="${s.volume}" oninput="document.getElementById('mus-vol-display').textContent=this.value+'%'" onchange="musicControl('volume', this.value)" style="width:100%">
+      </div>
+      ${s.queue.length ? `<div style="margin-top:10px;"><div class="field-label">Up next</div>${queueLines}${s.queue.length > 8 ? `<div style="font-size:11px; color:var(--text-dim); margin-top:4px;">…and ${s.queue.length - 8} more</div>` : ""}</div>` : ""}
+    `;
+  } catch (e) { el.innerHTML = `<div class="empty-state">Couldn't load: ${e.message}</div>`; }
+}
+
+async function musicControl(action, value) {
+  try { await api("/api/music/control", { method: "POST", body: JSON.stringify({ action, value }) }); if (action !== "volume") toast("Done"); loadMusicStatus(); }
+  catch (e) { toast("Failed: " + e.message, true); }
+}
+
+async function loadMusicSettings() {
+  try {
+    const [settings, roles] = await Promise.all([api("/api/music/settings"), api("/api/roles")]);
+    document.getElementById("mus-defaultvol").value = settings.defaultVolume ?? 100;
+    document.getElementById("mus-maxqueue").value = settings.maxQueueSize ?? 100;
+    document.getElementById("mus-autoleave").value = settings.autoLeaveMinutes ?? 2;
+    document.getElementById("mus-allowyt").checked = settings.allowYoutube !== false;
+    document.getElementById("mus-allowurl").checked = settings.allowDirectUrls !== false;
+    document.getElementById("mus-announce").checked = settings.announceNowPlaying !== false;
+    document.getElementById("mus-djrole").innerHTML = `<option value="">— Anyone can control —</option>` + roles.map(r => `<option value="${r.id}" ${r.id === settings.djRoleId ? "selected" : ""}>${r.name}</option>`).join("");
+  } catch (e) { toast("Music settings load failed: " + e.message, true); }
+}
+
+async function saveMusicSettings() {
+  try {
+    await api("/api/music/settings", {
+      method: "POST",
+      body: JSON.stringify({
+        defaultVolume: document.getElementById("mus-defaultvol").value,
+        maxQueueSize: document.getElementById("mus-maxqueue").value,
+        autoLeaveMinutes: document.getElementById("mus-autoleave").value,
+        djRoleId: document.getElementById("mus-djrole").value,
+        allowYoutube: document.getElementById("mus-allowyt").checked,
+        allowDirectUrls: document.getElementById("mus-allowurl").checked,
+        announceNowPlaying: document.getElementById("mus-announce").checked,
+      }),
+    });
+    toast("✅ Music settings saved");
+  } catch (e) { toast("Save failed: " + e.message, true); }
+}
 
 async function loadShop() {
   try {

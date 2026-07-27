@@ -1154,15 +1154,43 @@
     <div class="builder-grid">
       <div>
         <div class="card">
+          <div class="card-title">Templates</div>
+          <div class="row" style="margin-bottom:4px;">
+            <select id="eb-template-select" style="flex:1"><option value="">— Load a saved template —</option></select>
+            <button class="btn-ghost btn-sm" onclick="loadEmbedTemplate()">Load</button>
+            <button class="btn-ghost btn-sm" onclick="deleteEmbedTemplate()">🗑️</button>
+          </div>
+          <div class="row">
+            <input type="text" id="eb-template-name" placeholder="Template name to save as" style="flex:1">
+            <button class="btn-ghost btn-sm" onclick="saveEmbedTemplate()">💾 Save</button>
+          </div>
+        </div>
+        <div class="card">
           <div class="field-group"><label class="field-label">Title</label><input type="text" id="eb-title" style="width:100%" oninput="renderPreview()"></div>
           <div class="field-group"><label class="field-label">Description</label><textarea id="eb-desc" rows="4" style="width:100%" oninput="renderPreview()"></textarea></div>
           <div class="row" style="margin-bottom:14px">
             <div style="flex:1"><label class="field-label">Color</label><input type="text" id="eb-color" value="#38bdf8" style="width:100%" oninput="renderPreview()"></div>
             <div style="flex:1"><label class="field-label">Footer</label><input type="text" id="eb-footer" style="width:100%" oninput="renderPreview()"></div>
           </div>
-          <div class="row" style="margin-bottom:14px">
-            <div style="flex:1"><label class="field-label">Thumbnail URL</label><input type="text" id="eb-thumb" style="width:100%" oninput="renderPreview()"></div>
-            <div style="flex:1"><label class="field-label">Image URL</label><input type="text" id="eb-image" style="width:100%" oninput="renderPreview()"></div>
+          <div class="row" style="margin-bottom:6px; align-items:flex-end;">
+            <div style="flex:1">
+              <label class="field-label">Thumbnail</label>
+              <input type="text" id="eb-thumb" placeholder="Image URL, or upload below" style="width:100%" oninput="renderPreview()">
+            </div>
+            <div style="flex:1">
+              <label class="field-label">Image</label>
+              <input type="text" id="eb-image" placeholder="Image URL, or upload below" style="width:100%" oninput="renderPreview()">
+            </div>
+          </div>
+          <div class="row" style="margin-bottom:14px;">
+            <div style="flex:1;">
+              <input type="file" id="eb-thumb-file" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none" onchange="uploadEmbedImage('thumb', this)">
+              <button class="btn-ghost btn-sm" style="width:100%" onclick="document.getElementById('eb-thumb-file').click()" id="eb-thumb-upload-btn">📤 Upload thumbnail image</button>
+            </div>
+            <div style="flex:1;">
+              <input type="file" id="eb-image-file" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none" onchange="uploadEmbedImage('image', this)">
+              <button class="btn-ghost btn-sm" style="width:100%" onclick="document.getElementById('eb-image-file').click()" id="eb-image-upload-btn">📤 Upload image</button>
+            </div>
           </div>
           <div class="card-title">Fields <button class="btn-ghost btn-sm" onclick="addFieldRow()">+ Add Field</button></div>
           <div id="eb-fields"></div>
@@ -1763,6 +1791,7 @@ async function loadOverview() {
       <div class="stat"><div class="val">${s.ping}ms</div><div class="lbl">Ping</div></div>
       <div class="stat"><div class="val">${Math.floor(s.uptimeSeconds/3600)}h ${Math.floor((s.uptimeSeconds%3600)/60)}m</div><div class="lbl">Uptime</div></div>
       <div class="stat"><div class="val">${s.commandCount}</div><div class="lbl">Slash commands</div></div>
+      <div class="stat"><div class="val">${s.subcommandCount ?? "—"}</div><div class="lbl">Total subcommands</div></div>
       <div class="stat"><div class="val" style="font-size:15px">${s.botTag}</div><div class="lbl">Bot account</div></div>
     `;
   } catch (e) { toast("Overview failed: " + e.message, true); setConn(true, false); }
@@ -2208,7 +2237,118 @@ async function loadBuilderChannels() {
     const channels = await api("/api/channels");
     document.getElementById("eb-channel").innerHTML = channels.map(c => `<option value="${c.id}">#${c.name}</option>`).join("");
   } catch (e) { toast("Couldn't load channels: " + e.message, true); }
+  await refreshEmbedTemplateList();
 }
+
+async function refreshEmbedTemplateList() {
+  try {
+    const templates = await api("/api/embed-templates");
+    const select = document.getElementById("eb-template-select");
+    const current = select.value;
+    select.innerHTML = `<option value="">— Load a saved template —</option>` +
+      templates.map(t => `<option value="${t.name}">${t.name}</option>`).join("");
+    if (templates.some(t => t.name === current)) select.value = current;
+  } catch (e) { toast("Couldn't load templates: " + e.message, true); }
+}
+
+// Applies a saved draft object to the builder form + fields, then re-renders the preview.
+function applyDraftToForm(draft) {
+  document.getElementById("eb-title").value = draft.title || "";
+  document.getElementById("eb-desc").value = draft.description || "";
+  document.getElementById("eb-color").value = typeof draft.color === "number" ? "#" + draft.color.toString(16).padStart(6, "0") : (draft.color || "#38bdf8");
+  document.getElementById("eb-footer").value = draft.footer || "";
+  document.getElementById("eb-thumb").value = draft.thumbnail || "";
+  document.getElementById("eb-image").value = draft.image || "";
+  document.getElementById("eb-fields").innerHTML = "";
+  fieldCount = 0;
+  for (const f of (draft.fields || [])) {
+    addFieldRow();
+    const row = document.getElementById("eb-fields").lastElementChild;
+    row.querySelector(".f-name").value = f.name || "";
+    row.querySelector(".f-value").value = f.value || "";
+  }
+  renderPreview();
+}
+
+async function loadEmbedTemplate() {
+  const name = document.getElementById("eb-template-select").value;
+  if (!name) return toast("Pick a template first", true);
+  try {
+    const { draft } = await api("/api/embed-templates/" + encodeURIComponent(name));
+    applyDraftToForm(draft);
+    toast(`Loaded "${name}"`);
+  } catch (e) { toast("Load failed: " + e.message, true); }
+}
+
+async function saveEmbedTemplate() {
+  const nameInput = document.getElementById("eb-template-name");
+  const name = nameInput.value.trim();
+  if (!name) return toast("Enter a template name first", true);
+  const fields = [...document.querySelectorAll("#eb-fields .row")].map(r => ({
+    name: r.querySelector(".f-name").value, value: r.querySelector(".f-value").value,
+  })).filter(f => f.name && f.value);
+  const draft = {
+    title: document.getElementById("eb-title").value || null,
+    description: document.getElementById("eb-desc").value || null,
+    color: document.getElementById("eb-color").value || null,
+    footer: document.getElementById("eb-footer").value || null,
+    thumbnail: document.getElementById("eb-thumb").value || null,
+    image: document.getElementById("eb-image").value || null,
+    fields,
+  };
+  try {
+    await api("/api/embed-templates", { method: "POST", body: JSON.stringify({ name, draft }) });
+    toast(`💾 Saved as "${name}"`);
+    nameInput.value = "";
+    await refreshEmbedTemplateList();
+  } catch (e) { toast("Save failed: " + e.message, true); }
+}
+
+async function deleteEmbedTemplate() {
+  const select = document.getElementById("eb-template-select");
+  const name = select.value;
+  if (!name) return toast("Pick a template to delete first", true);
+  try {
+    await api("/api/embed-templates/" + encodeURIComponent(name), { method: "DELETE" });
+    toast(`🗑️ Deleted "${name}"`);
+    await refreshEmbedTemplateList();
+  } catch (e) { toast("Delete failed: " + e.message, true); }
+}
+
+// File upload needs its own fetch (not the shared api() helper) because
+// FormData sets its own multipart Content-Type header with a boundary —
+// forcing "application/json" like every other call does would break the
+// upload entirely.
+async function uploadEmbedImage(target, inputEl) {
+  const file = inputEl.files?.[0];
+  if (!file) return;
+  const btnId = target === "thumb" ? "eb-thumb-upload-btn" : "eb-image-upload-btn";
+  const btn = document.getElementById(btnId);
+  const originalLabel = btn.textContent;
+  btn.textContent = "⏳ Uploading…";
+  btn.disabled = true;
+  try {
+    const formData = new FormData();
+    formData.append("image", file);
+    const headers = {};
+    if (SESSION_TOKEN) headers["Authorization"] = "Bearer " + SESSION_TOKEN;
+    else if (API_KEY) headers["X-API-Key"] = API_KEY;
+    if (SELECTED_GUILD?.id) headers["X-Guild-Id"] = SELECTED_GUILD.id;
+    const res = await fetch(API_URL + "/api/embed-builder/upload-image", { method: "POST", headers, body: formData });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    document.getElementById(target === "thumb" ? "eb-thumb" : "eb-image").value = json.url;
+    renderPreview();
+    toast("✅ Image uploaded");
+  } catch (e) {
+    toast("Upload failed: " + e.message, true);
+  } finally {
+    btn.textContent = originalLabel;
+    btn.disabled = false;
+    inputEl.value = ""; // allow re-selecting the same file later
+  }
+}
+
 async function sendEmbed() {
   const fields = [...document.querySelectorAll("#eb-fields .row")].map(r => ({
     name: r.querySelector(".f-name").value, value: r.querySelector(".f-value").value,

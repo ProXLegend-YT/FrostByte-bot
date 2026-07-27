@@ -601,6 +601,93 @@
   /* Section dividers with a subtle glow, for grouping dashboard controls */
   .hud-divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border-hover), transparent); margin: 18px 0; }
 
+  /* ── Music player card ── */
+  .player-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+    padding: 22px;
+    background:
+      radial-gradient(ellipse 500px 300px at 100% 0%, rgba(56,189,248,0.12), transparent 60%),
+      linear-gradient(160deg, var(--panel), var(--panel-2));
+    border: 1px solid var(--border);
+  }
+  .player-card.is-live { border-color: rgba(56,189,248,0.35); box-shadow: 0 0 0 1px rgba(56,189,248,0.08), 0 20px 60px -20px rgba(56,189,248,0.25); }
+  .player-art-wrap { display: flex; gap: 18px; align-items: center; }
+  .player-art {
+    width: 84px; height: 84px; border-radius: 12px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--navy-deep), var(--panel-2));
+    background-size: cover; background-position: center;
+    border: 1px solid var(--border-hover);
+    box-shadow: 0 8px 24px -8px rgba(0,0,0,0.6);
+    position: relative; overflow: hidden;
+  }
+  .player-art::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(56,189,248,0.15), transparent 60%);
+  }
+  .player-art .art-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 30px; }
+  .player-meta { min-width: 0; flex: 1; }
+  .player-eyebrow {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ice-light);
+    display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-weight: 700;
+  }
+  .player-eyebrow .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ice); box-shadow: 0 0 8px var(--ice); animation: pulseDot 1.6s ease-in-out infinite; }
+  @keyframes pulseDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+  .player-title { font-size: 17px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .player-sub { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .player-progress-row { display: flex; align-items: center; gap: 10px; margin: 16px 0 4px; }
+  .player-progress-track {
+    flex: 1; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.06); overflow: hidden; position: relative;
+  }
+  .player-progress-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--ice), var(--cyan));
+    box-shadow: 0 0 10px rgba(56,189,248,0.7);
+    position: relative;
+    transition: width 0.8s linear;
+  }
+  .player-progress-fill::after {
+    content: ""; position: absolute; right: -1px; top: 50%; transform: translateY(-50%);
+    width: 9px; height: 9px; border-radius: 50%; background: #fff;
+    box-shadow: 0 0 8px rgba(56,189,248,0.9);
+  }
+  .player-time { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); min-width: 38px; }
+  .player-time.end { text-align: right; }
+
+  .player-controls { display: flex; align-items: center; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .player-btn {
+    width: 38px; height: 38px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    color: var(--text); cursor: pointer; font-size: 15px;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  }
+  .player-btn:hover { border-color: var(--ice); background: rgba(56,189,248,0.1); transform: translateY(-1px); }
+  .player-btn:active { transform: translateY(0); }
+  .player-btn.danger:hover { border-color: var(--danger); background: rgba(248,113,113,0.1); }
+  .player-btn.active { border-color: var(--ice); background: rgba(56,189,248,0.15); box-shadow: 0 0 10px -2px rgba(56,189,248,0.5); }
+  .player-vol-wrap { display: flex; align-items: center; gap: 8px; margin-left: auto; min-width: 140px; }
+  .player-vol-wrap input[type=range] { flex: 1; accent-color: var(--ice); }
+
+  .queue-list { margin-top: 4px; }
+  .queue-row {
+    display: flex; align-items: center; gap: 10px; padding: 9px 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 12.5px;
+  }
+  .queue-row:last-child { border-bottom: none; }
+  .queue-idx {
+    width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
+    background: rgba(56,189,248,0.08); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--ice-light);
+  }
+  .queue-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+  .queue-req { color: var(--text-dim); font-size: 11px; flex-shrink: 0; }
+
 </style>
 </head>
 <body>
@@ -1003,11 +1090,10 @@
   <!-- SHOP -->
   <!-- MUSIC -->
   <div class="page" id="page-music">
-    <h1>Music</h1>
-    <div class="subtitle">Live playback control, plus who's allowed to control it and where songs come from.</div>
+    <h1>🎵 Music</h1>
+    <div class="subtitle">Powered by Lavalink — live playback control, plus who's allowed to control it and where songs come from.</div>
 
-    <div class="card" id="music-status-card">
-      <div class="card-title">Now Playing <button class="btn-ghost btn-sm" onclick="loadMusicStatus()">↻ Refresh</button></div>
+    <div class="card" id="music-status-card" style="padding:0; overflow:hidden;">
       <div id="music-status">Loading…</div>
     </div>
 
@@ -1896,38 +1982,119 @@ async function loadMusic() {
   await Promise.all([loadMusicStatus(), loadMusicSettings()]);
 }
 
+let _musicTicker = null;
+let _musicTickerState = null; // { position, duration, startedAtMs }
+
+function _fmtDur(ms) {
+  if (!ms || ms <= 0 || !isFinite(ms)) return "LIVE";
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600), m = Math.floor((totalSec % 3600) / 60), s = totalSec % 60;
+  const pad = n => String(n).padStart(2, "0");
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}
+
+function _renderMusicProgress() {
+  if (!_musicTickerState) return;
+  const track = document.getElementById("mus-progress-fill");
+  const timeNow = document.getElementById("mus-time-now");
+  if (!track || !timeNow) return;
+  const { position, duration, startedAtMs } = _musicTickerState;
+  const elapsed = position + (Date.now() - startedAtMs);
+  const pct = duration > 0 ? Math.max(0, Math.min(100, (elapsed / duration) * 100)) : 100;
+  track.style.width = pct + "%";
+  timeNow.textContent = _fmtDur(Math.min(elapsed, duration || elapsed));
+}
+
 async function loadMusicStatus() {
   const el = document.getElementById("music-status");
+  const card = document.getElementById("music-status-card");
+  if (_musicTicker) { clearInterval(_musicTicker); _musicTicker = null; }
   try {
     const s = await api("/api/music/status");
+    card.classList.remove("player-card", "is-live");
+
     if (!s.available) {
-      el.innerHTML = `<div class="empty-state">🎵 Music isn't available on this host — its dependencies failed to install when the bot started. Check the bot's console log for details.</div>`;
+      card.style.padding = "20px 22px";
+      el.innerHTML = `<div class="empty-state">🎵 Music isn't available on this host — the Lavalink client library failed to load when the bot started. Check the bot's console log for details.</div>`;
+      return;
+    }
+    if (s.nodeConnected === false) {
+      card.style.padding = "20px 22px";
+      el.innerHTML = `<div class="empty-state">🔌 Connecting to the Lavalink node… if this doesn't clear up, check the bot's console log — the configured node may be unreachable.</div>`;
       return;
     }
     if (!s.playing) {
+      card.style.padding = "20px 22px";
       el.innerHTML = `<div class="empty-state">Nothing playing right now. Use <code>/music play</code> in Discord to start.</div>`;
       return;
     }
-    const queueLines = s.queue.slice(0, 8).map((t, i) => `<div style="font-size:12.5px; color:var(--text-muted); padding:4px 0;">${i + 1}. ${t.title}</div>`).join("");
+
+    card.style.padding = "0";
+    card.classList.add("player-card", "is-live");
+    const c = s.current || {};
+    const artStyle = c.thumbnail ? `background-image:url('${c.thumbnail.replace(/'/g, "%27")}')` : "";
+    const loopIcon = { off: "➡️", track: "🔂", queue: "🔁" }[s.loop] || "➡️";
+    const queueLines = s.queue.slice(0, 8).map((t, i) => `
+      <div class="queue-row">
+        <div class="queue-idx">${i + 1}</div>
+        <div class="queue-title">${t.title}</div>
+        <div class="queue-req">${t.requestedBy}</div>
+      </div>`).join("");
+
     el.innerHTML = `
-      <div style="margin-bottom:14px;">
-        <div style="font-weight:700; font-size:15px;">🎵 ${s.current?.title || "—"}</div>
-        <div style="font-size:12px; color:var(--text-dim); margin-top:2px;">Requested by ${s.current?.requestedBy || "—"} • Loop: ${s.loop} • Volume: ${s.volume}%</div>
+      <div style="padding:22px;">
+        <div class="player-art-wrap">
+          <div class="player-art" style="${artStyle}">${c.thumbnail ? "" : `<div class="art-fallback">🎵</div>`}</div>
+          <div class="player-meta">
+            <div class="player-eyebrow"><span class="live-dot"></span> NOW PLAYING</div>
+            <div class="player-title" title="${(c.title || "").replace(/"/g, "&quot;")}">${c.title || "—"}</div>
+            <div class="player-sub">Requested by ${c.requestedBy || "—"} • ${loopIcon} ${s.loop} loop</div>
+          </div>
+        </div>
+
+        <div class="player-progress-row">
+          <div class="player-time" id="mus-time-now">${_fmtDur(c.position || 0)}</div>
+          <div class="player-progress-track"><div class="player-progress-fill" id="mus-progress-fill" style="width:0%"></div></div>
+          <div class="player-time end">${_fmtDur(c.duration || 0)}</div>
+        </div>
+
+        <div class="player-controls">
+          <div class="player-btn" onclick="musicControl('pause')" title="Pause">⏸️</div>
+          <div class="player-btn" onclick="musicControl('resume')" title="Resume">▶️</div>
+          <div class="player-btn" onclick="musicControl('skip')" title="Skip">⏭️</div>
+          <div class="player-btn danger" onclick="musicControl('stop')" title="Stop">⏹️</div>
+          <div class="player-btn ${s.loop !== 'off' ? 'active' : ''}" onclick="musicCycleLoop('${s.loop}')" title="Loop">${loopIcon}</div>
+          <div class="player-vol-wrap">
+            <span style="font-size:12px;">🔊</span>
+            <input type="range" min="0" max="150" value="${s.volume}" oninput="document.getElementById('mus-vol-display').textContent=this.value+'%'" onchange="musicControl('volume', this.value)">
+            <span id="mus-vol-display" style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--text-dim); min-width:34px;">${s.volume}%</span>
+          </div>
+        </div>
+
+        ${s.queue.length ? `
+          <div class="hud-divider"></div>
+          <div class="field-label" style="margin-bottom:2px;">Up next <span style="color:var(--text-dim); font-weight:400;">(${s.queue.length})</span></div>
+          <div class="queue-list">${queueLines}</div>
+          ${s.queue.length > 8 ? `<div style="font-size:11px; color:var(--text-dim); margin-top:6px;">…and ${s.queue.length - 8} more</div>` : ""}
+        ` : ""}
       </div>
-      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
-        <button class="btn-ghost btn-sm" onclick="musicControl('pause')">⏸️ Pause</button>
-        <button class="btn-ghost btn-sm" onclick="musicControl('resume')">▶️ Resume</button>
-        <button class="btn-ghost btn-sm" onclick="musicControl('skip')">⏭️ Skip</button>
-        <button class="btn-ghost btn-sm" onclick="musicControl('stop')">⏹️ Stop</button>
-        <button class="btn-ghost btn-sm" onclick="musicControl('clear')">🗑️ Clear Queue</button>
-      </div>
-      <div class="field-group" style="max-width:260px;">
-        <label class="field-label">Volume: <span id="mus-vol-display">${s.volume}%</span></label>
-        <input type="range" min="0" max="150" value="${s.volume}" oninput="document.getElementById('mus-vol-display').textContent=this.value+'%'" onchange="musicControl('volume', this.value)" style="width:100%">
-      </div>
-      ${s.queue.length ? `<div style="margin-top:10px;"><div class="field-label">Up next</div>${queueLines}${s.queue.length > 8 ? `<div style="font-size:11px; color:var(--text-dim); margin-top:4px;">…and ${s.queue.length - 8} more</div>` : ""}</div>` : ""}
     `;
-  } catch (e) { el.innerHTML = `<div class="empty-state">Couldn't load: ${e.message}</div>`; }
+
+    if (c.duration) {
+      _musicTickerState = { position: c.position || 0, duration: c.duration, startedAtMs: Date.now() };
+      _renderMusicProgress();
+      _musicTicker = setInterval(_renderMusicProgress, 1000);
+    }
+  } catch (e) {
+    card.classList.remove("player-card", "is-live");
+    card.style.padding = "20px 22px";
+    el.innerHTML = `<div class="empty-state">Couldn't load: ${e.message}</div>`;
+  }
+}
+
+function musicCycleLoop(current) {
+  const next = current === "off" ? "track" : current === "track" ? "queue" : "off";
+  musicControl("loop", next);
 }
 
 async function musicControl(action, value) {

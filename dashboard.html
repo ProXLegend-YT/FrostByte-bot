@@ -889,6 +889,10 @@
       <div class="card-title"><span><span class="live-pulse" style="margin-right:8px"></span>Recent Activity</span> <button class="btn-ghost btn-sm" onclick="showPage('logs')">View all →</button></div>
       <div id="overview-activity" class="log-feed" style="max-height:340px"><div class="empty-state">Loading...</div></div>
     </div>
+    <div class="card">
+      <div class="card-title">Member Growth (30 days) <button class="btn-ghost btn-sm" onclick="loadGrowthChart()">↻ Refresh</button></div>
+      <div id="growth-chart-wrap"><div class="empty-state">Loading...</div></div>
+    </div>
   </div>
 
   <!-- COMMANDS -->
@@ -1799,6 +1803,56 @@ async function loadOverview() {
     const { entries } = await api("/api/logs?limit=8");
     document.getElementById("overview-activity").innerHTML = renderLogEntries(entries);
   } catch (e) { /* non-fatal on overview */ }
+  loadGrowthChart();
+}
+
+// ── Member growth chart ──
+// Lightweight inline SVG line chart — no Chart.js/CDN dependency, just
+// draws directly from the daily snapshots the bot already collects
+// server-side. Keeps the dashboard fast and self-contained.
+async function loadGrowthChart() {
+  const wrap = document.getElementById("growth-chart-wrap");
+  try {
+    const { memberSnapshots } = await api("/api/stats/growth");
+    const days = Object.keys(memberSnapshots).sort();
+    if (days.length < 2) {
+      wrap.innerHTML = `<div class="empty-state">Not enough history yet — check back after a couple of days.</div>`;
+      return;
+    }
+    const values = days.map(d => memberSnapshots[d]);
+    const min = Math.min(...values), max = Math.max(...values);
+    const range = Math.max(1, max - min);
+    const W = 760, H = 180, PAD = 30;
+    const stepX = (W - PAD * 2) / (days.length - 1);
+    const points = values.map((v, i) => {
+      const x = PAD + i * stepX;
+      const y = H - PAD - ((v - min) / range) * (H - PAD * 2);
+      return [x, y];
+    });
+    const pathD = points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+    const areaD = `${pathD} L${points[points.length - 1][0].toFixed(1)},${H - PAD} L${points[0][0].toFixed(1)},${H - PAD} Z`;
+
+    wrap.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:200px; display:block;">
+        <defs>
+          <linearGradient id="growthFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="${areaD}" fill="url(#growthFill)"/>
+        <path d="${pathD}" fill="none" stroke="#38bdf8" stroke-width="2.5"/>
+        ${points.map(([x, y]) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#7dd3fc"/>`).join("")}
+      </svg>
+      <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-dim); font-family:'IBM Plex Mono',monospace; margin-top:4px;">
+        <span>${days[0]}</span>
+        <span style="color:var(--ice-light); font-weight:600;">${values[values.length - 1]} members (${values[values.length - 1] >= values[0] ? "+" : ""}${values[values.length - 1] - values[0]} over ${days.length}d)</span>
+        <span>${days[days.length - 1]}</span>
+      </div>
+    `;
+  } catch (e) {
+    wrap.innerHTML = `<div class="empty-state">Couldn't load growth data: ${e.message}</div>`;
+  }
 }
 
 // ── Logs ──

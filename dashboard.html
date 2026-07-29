@@ -601,6 +601,35 @@
   /* Section dividers with a subtle glow, for grouping dashboard controls */
   .hud-divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border-hover), transparent); margin: 18px 0; }
 
+  /* ── Playlist browser (Music page) ── */
+  .playlist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+  }
+  .playlist-tile {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  }
+  .playlist-tile:hover { border-color: var(--ice); background: rgba(56,189,248,0.08); transform: translateY(-2px); }
+  .playlist-tile-emoji { font-size: 26px; margin-bottom: 6px; }
+  .playlist-tile-label { font-size: 13px; font-weight: 600; color: var(--text); }
+  .playlist-tile-count { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  .playlist-song-list { max-height: 340px; overflow-y: auto; }
+  .playlist-song-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 8px; border-radius: 8px;
+    font-size: 13px; cursor: pointer;
+    transition: background 0.12s;
+  }
+  .playlist-song-row:hover { background: rgba(56,189,248,0.08); }
+
   /* ── Music player card ── */
   .player-card {
     position: relative;
@@ -1096,6 +1125,23 @@
   <div class="page" id="page-music">
     <h1>🎵 Music</h1>
     <div class="subtitle">Powered by Lavalink — live playback control, plus who's allowed to control it and where songs come from.</div>
+
+    <div class="card">
+      <div class="card-title">Play</div>
+      <div class="field-group">
+        <label class="field-label">Voice channel</label>
+        <select id="mus-voice-channel" style="width:100%"><option value="">Loading…</option></select>
+      </div>
+      <div class="row">
+        <input type="text" id="mus-search-input" placeholder="Song name, artist, or a direct link…" style="flex:1" onkeydown="if(event.key==='Enter') playFromSearch()">
+        <button class="btn-primary" onclick="playFromSearch()">▶️ Play</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Browse Playlists <button class="btn-ghost btn-sm" id="mus-playlist-back-btn" style="display:none" onclick="renderPlaylistCategories()">← Back to categories</button></div>
+      <div id="mus-playlist-browser"><div class="empty-state">Loading…</div></div>
+    </div>
 
     <div class="card" id="music-status-card" style="padding:0; overflow:hidden;">
       <div id="music-status">Loading…</div>
@@ -2062,7 +2108,90 @@ renderShopTypeFields();
 
 // ── Music ──
 async function loadMusic() {
-  await Promise.all([loadMusicStatus(), loadMusicSettings()]);
+  await Promise.all([loadMusicStatus(), loadMusicSettings(), loadVoiceChannels(), renderPlaylistCategories()]);
+}
+
+async function loadVoiceChannels() {
+  try {
+    const channels = await api("/api/voice-channels");
+    const select = document.getElementById("mus-voice-channel");
+    select.innerHTML = channels.length
+      ? channels.map(c => `<option value="${c.id}">${c.name} (${c.memberCount} in call)</option>`).join("")
+      : `<option value="">No voice channels found</option>`;
+  } catch (e) { toast("Couldn't load voice channels: " + e.message, true); }
+}
+
+function selectedVoiceChannelId() {
+  const id = document.getElementById("mus-voice-channel").value;
+  if (!id) toast("Pick a voice channel first", true);
+  return id || null;
+}
+
+async function playFromSearch() {
+  const input = document.getElementById("mus-search-input");
+  const query = input.value.trim();
+  if (!query) return toast("Type a song name or link first", true);
+  const voiceChannelId = selectedVoiceChannelId();
+  if (!voiceChannelId) return;
+  try {
+    const result = await api("/api/music/play", { method: "POST", body: JSON.stringify({ query, voiceChannelId }) });
+    toast(result.nowPlaying ? `🎵 Now playing: ${result.nowPlaying}` : `➕ Added ${result.queued} track(s) to the queue`);
+    input.value = "";
+    loadMusicStatus();
+  } catch (e) { toast("Play failed: " + e.message, true); }
+}
+
+async function renderPlaylistCategories() {
+  document.getElementById("mus-playlist-back-btn").style.display = "none";
+  const wrap = document.getElementById("mus-playlist-browser");
+  try {
+    const playlists = await api("/api/music/playlists");
+    wrap.innerHTML = `<div class="playlist-grid">${playlists.map(p => `
+      <div class="playlist-tile" onclick="renderPlaylistSongs('${p.name}')">
+        <div class="playlist-tile-emoji">${p.emoji}</div>
+        <div class="playlist-tile-label">${p.label}</div>
+        <div class="playlist-tile-count">${p.trackCount} tracks</div>
+      </div>
+    `).join("")}</div>`;
+  } catch (e) { wrap.innerHTML = `<div class="empty-state">Couldn't load playlists: ${e.message}</div>`; }
+}
+
+async function renderPlaylistSongs(name) {
+  document.getElementById("mus-playlist-back-btn").style.display = "";
+  const wrap = document.getElementById("mus-playlist-browser");
+  wrap.innerHTML = `<div class="empty-state">Loading…</div>`;
+  try {
+    const { label, emoji, songs } = await api("/api/music/playlists/" + encodeURIComponent(name));
+    wrap.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div style="font-weight:700;">${emoji} ${label} <span style="color:var(--text-dim); font-weight:400;">(${songs.length} tracks)</span></div>
+        <button class="btn-primary btn-sm" onclick="playPlaylist('${name}', false)">▶️ Play All</button>
+      </div>
+      <div class="playlist-song-list">
+        ${songs.map((s, i) => `<div class="playlist-song-row" onclick="playPlaylistSong('${name}', ${i})"><span>🎵</span><span>${s}</span></div>`).join("")}
+      </div>
+    `;
+  } catch (e) { wrap.innerHTML = `<div class="empty-state">Couldn't load: ${e.message}</div>`; }
+}
+
+async function playPlaylist(name, shuffle) {
+  const voiceChannelId = selectedVoiceChannelId();
+  if (!voiceChannelId) return;
+  try {
+    const result = await api(`/api/music/playlists/${encodeURIComponent(name)}/play`, { method: "POST", body: JSON.stringify({ voiceChannelId, shuffle }) });
+    toast(`🎶 Queued ${result.queued}/${result.total} tracks`);
+    loadMusicStatus();
+  } catch (e) { toast("Play failed: " + e.message, true); }
+}
+
+async function playPlaylistSong(name, songIndex) {
+  const voiceChannelId = selectedVoiceChannelId();
+  if (!voiceChannelId) return;
+  try {
+    const result = await api(`/api/music/playlists/${encodeURIComponent(name)}/play`, { method: "POST", body: JSON.stringify({ voiceChannelId, songIndex }) });
+    toast(result.nowPlaying ? `🎵 Now playing: ${result.nowPlaying}` : "➕ Added to queue");
+    loadMusicStatus();
+  } catch (e) { toast("Play failed: " + e.message, true); }
 }
 
 let _musicTicker = null;

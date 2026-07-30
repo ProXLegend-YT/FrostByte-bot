@@ -1148,6 +1148,11 @@
     </div>
 
     <div class="card">
+      <div class="card-title">Recently Played <button class="btn-ghost btn-sm" onclick="loadMusicHistory()">↻ Refresh</button></div>
+      <div id="music-history"><div class="empty-state">Loading…</div></div>
+    </div>
+
+    <div class="card">
       <div class="card-title">Settings</div>
       <div class="field-group"><label class="field-label">Default volume (%)</label><input type="number" id="mus-defaultvol" min="0" max="150" style="width:100%"></div>
       <div class="field-group"><label class="field-label">DJ role <span style="color:var(--text-dim); font-weight:400;">— leave as "anyone" to let all members control playback</span></label><select id="mus-djrole" style="width:100%"></select></div>
@@ -2106,7 +2111,24 @@ renderShopTypeFields();
 
 // ── Music ──
 async function loadMusic() {
-  await Promise.all([loadMusicStatus(), loadMusicSettings(), loadVoiceChannels(), renderPlaylistCategories()]);
+  await Promise.all([loadMusicStatus(), loadMusicSettings(), loadVoiceChannels(), renderPlaylistCategories(), loadMusicHistory()]);
+}
+
+async function loadMusicHistory() {
+  const el = document.getElementById("music-history");
+  try {
+    const history = await api("/api/music/history");
+    if (!history.length) {
+      el.innerHTML = `<div class="empty-state">Nothing played yet.</div>`;
+      return;
+    }
+    el.innerHTML = `<div class="queue-list">${history.map(h => `
+      <div class="queue-row">
+        <div class="queue-title">${h.title} <span style="color:var(--text-dim);">— ${h.author}</span></div>
+        <div class="queue-req">${h.requestedBy}</div>
+      </div>
+    `).join("")}</div>`;
+  } catch (e) { el.innerHTML = `<div class="empty-state">Couldn't load history: ${e.message}</div>`; }
 }
 
 async function loadVoiceChannels() {

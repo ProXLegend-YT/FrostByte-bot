@@ -1445,17 +1445,15 @@
     <h1>YouTube Notifications</h1>
     <div class="subtitle">Announce new uploads automatically — checked every 5 minutes, no API key needed</div>
     <div class="card">
-      <div class="card-title">Configuration</div>
+      <div class="card-title">Add a channel to watch</div>
       <div class="field-group"><label class="field-label">YouTube Channel ID</label><input type="text" id="yt-channelid" style="width:100%" placeholder="UCxxxxxxxxxxxxxxxxxxxxxx"></div>
       <div class="field-group"><label class="field-label">Channel display name (optional)</label><input type="text" id="yt-channelname" style="width:100%" placeholder="e.g. My Gaming Channel"></div>
       <div class="field-group"><label class="field-label">Announcement channel</label><select id="yt-discordchannel" style="width:100%"></select></div>
-      <button class="btn-primary" onclick="saveYoutube()">💾 Save</button>
+      <button class="btn-primary" onclick="addYoutubeWatch()">➕ Add Channel</button>
     </div>
     <div class="card">
-      <div class="card-title">Test Connection</div>
-      <div class="toggle-desc" style="margin-bottom:10px">Fetches the latest video without marking it as "seen", so it's safe to click anytime.</div>
-      <button class="btn-ghost" onclick="testYoutube()">🔍 Check Latest Video</button>
-      <div id="yt-preview" style="margin-top:14px"></div>
+      <div class="card-title">Currently watching <button class="btn-ghost btn-sm" onclick="loadYoutube()">↻ Refresh</button></div>
+      <div id="yt-watch-list"><div class="empty-state">Loading…</div></div>
     </div>
   </div>
 
@@ -2811,31 +2809,63 @@ async function resetMessageDefault(kind) {
 
 // ── YouTube Notifications ──
 async function loadYoutube() {
+  const listEl = document.getElementById("yt-watch-list");
   try {
-    const [yt, channels] = await Promise.all([api("/api/youtube"), api("/api/channels")]);
-    document.getElementById("yt-channelid").value = yt.ytChannelId || "";
-    document.getElementById("yt-channelname").value = yt.ytChannelName || "";
-    const chanOpts = `<option value="">— none —</option>` + channels.map(c => `<option value="${c.id}" ${c.id === yt.discordChannel ? "selected" : ""}>#${c.name}</option>`).join("");
+    const [watches, channels] = await Promise.all([api("/api/youtube"), api("/api/channels")]);
+    const chanOpts = `<option value="">— pick a channel —</option>` + channels.map(c => `<option value="${c.id}">#${c.name}</option>`).join("");
     document.getElementById("yt-discordchannel").innerHTML = chanOpts;
+
+    if (!watches.length) {
+      listEl.innerHTML = `<div class="empty-state">Not watching any YouTube channels yet — add one above.</div>`;
+      return;
+    }
+    const channelName = (id) => channels.find(c => c.id === id)?.name;
+    listEl.innerHTML = watches.map(w => `
+      <div class="row" style="align-items:center; padding:10px 0; border-bottom:1px solid var(--border);">
+        <div style="flex:1;">
+          <div style="font-weight:600;">${w.ytChannelName || w.ytChannelId}</div>
+          <div class="toggle-desc">${w.ytChannelId} → ${channelName(w.discordChannel) ? "#" + channelName(w.discordChannel) : "unknown channel"}</div>
+        </div>
+        <button class="btn-ghost btn-sm" onclick="testYoutubeWatch('${w.ytChannelId}')">🔍 Check</button>
+        <button class="btn-ghost btn-sm" onclick="removeYoutubeWatch('${w.id}')">🗑️ Remove</button>
+      </div>
+      <div id="yt-preview-${w.id}"></div>
+    `).join("");
   } catch (e) { toast("YouTube load failed: " + e.message, true); }
 }
-async function saveYoutube() {
+
+async function addYoutubeWatch() {
   const body = {
     ytChannelId: document.getElementById("yt-channelid").value.trim(),
     ytChannelName: document.getElementById("yt-channelname").value.trim(),
     discordChannel: document.getElementById("yt-discordchannel").value,
   };
-  try { await api("/api/youtube", { method: "POST", body: JSON.stringify(body) }); toast("✅ YouTube settings saved"); }
-  catch (e) { toast("Save failed: " + e.message, true); }
+  if (!body.ytChannelId || !body.discordChannel) return toast("Channel ID and announcement channel are both required", true);
+  try {
+    await api("/api/youtube", { method: "POST", body: JSON.stringify(body) });
+    toast("✅ Now watching that channel");
+    document.getElementById("yt-channelid").value = "";
+    document.getElementById("yt-channelname").value = "";
+    loadYoutube();
+  } catch (e) { toast("Add failed: " + e.message, true); }
 }
-async function testYoutube() {
-  const el = document.getElementById("yt-preview");
+
+async function removeYoutubeWatch(id) {
+  try { await api("/api/youtube/" + id, { method: "DELETE" }); toast("Removed"); loadYoutube(); }
+  catch (e) { toast("Remove failed: " + e.message, true); }
+}
+
+async function testYoutubeWatch(ytChannelId) {
+  const watches = await api("/api/youtube");
+  const w = watches.find(x => x.ytChannelId === ytChannelId);
+  const el = document.getElementById(`yt-preview-${w?.id}`);
+  if (!el) return;
   el.innerHTML = `<div class="toggle-desc">Checking…</div>`;
   try {
-    const v = await api("/api/youtube/latest");
+    const v = await api("/api/youtube/latest?ytChannelId=" + encodeURIComponent(ytChannelId));
     el.innerHTML = `
-      <div class="row" style="align-items:flex-start; gap:12px;">
-        ${v.thumbnail ? `<img src="${v.thumbnail}" style="width:120px; border-radius:8px;">` : ""}
+      <div class="row" style="align-items:flex-start; gap:12px; margin-top:8px;">
+        ${v.thumbnail ? `<img src="${v.thumbnail}" style="width:100px; border-radius:8px;">` : ""}
         <div>
           <div style="font-weight:600">${v.title || "Untitled"}</div>
           <div class="toggle-desc">by ${v.author || "Unknown"} ${v.isNew ? "• 🆕 not yet announced" : "• already announced"}</div>

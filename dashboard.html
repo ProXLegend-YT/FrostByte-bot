@@ -1484,6 +1484,27 @@
         <button class="btn-ghost" style="align-self:flex-end" onclick="resetMessageDefault('leave')">↺ Reset to default</button>
       </div>
     </div>
+    <div class="card">
+      <div class="toggle-row">
+        <div><div class="toggle-label">Level-Up Messages</div><div class="toggle-desc">Posted whenever a member levels up (every 15 messages)</div></div>
+        <label class="switch"><input type="checkbox" id="msg-levelup-enabled" onchange="saveMessages()"><span class="slider"></span></label>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Announcement channel</label>
+        <select id="msg-levelup-channel" style="width:100%" onchange="saveMessages()"></select>
+        <div class="toggle-desc" style="margin-top:4px;">Leave as "same channel" to post wherever the member sent the message that leveled them up</div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Message</label>
+        <textarea id="msg-levelup-content" rows="3" style="width:100%" placeholder="🎉 {user} reached Level {level}! ({messages} messages total) ❄️"></textarea>
+        <div class="var-chip-row" data-target="msg-levelup-content"></div>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-label">Level-Up Image Card</div><div class="toggle-desc">Generated image with their avatar and new level, instead of plain text</div></div>
+        <label class="switch"><input type="checkbox" id="msg-levelup-card" onchange="saveMessages()"><span class="slider"></span></label>
+      </div>
+      <button class="btn-ghost" onclick="resetMessageDefault('levelup')">↺ Reset to default</button>
+    </div>
     <button class="btn-primary" onclick="saveMessages()">💾 Save messages</button>
   </div>
 
@@ -2942,11 +2963,18 @@ const MSG_VARS = [
   { key: "{membercount}", desc: "member count" },
   { key: "{inviter}", desc: "who invited them (welcome only)" },
 ];
+const LEVELUP_VARS = [
+  { key: "{user}", desc: "mentions them" },
+  { key: "{username}", desc: "just their name" },
+  { key: "{level}", desc: "their new level" },
+  { key: "{messages}", desc: "total messages counted" },
+];
 
 function renderVarChips() {
   document.querySelectorAll(".var-chip-row").forEach(row => {
     const targetId = row.dataset.target;
-    row.innerHTML = MSG_VARS.map(v => `<span class="var-chip" title="${v.desc}" onclick="insertVar('${targetId}', '${v.key}')">${v.key}</span>`).join("");
+    const varSet = targetId.includes("levelup") ? LEVELUP_VARS : MSG_VARS;
+    row.innerHTML = varSet.map(v => `<span class="var-chip" title="${v.desc}" onclick="insertVar('${targetId}', '${v.key}')">${v.key}</span>`).join("");
   });
 }
 
@@ -2970,9 +2998,13 @@ async function loadMessages() {
     document.getElementById("msg-leave-content").value = tmpl.leaveContent || "";
     document.getElementById("msg-leave-text").value = tmpl.leaveText || "";
     document.getElementById("msg-leave-color").value = tmpl.leaveColor || "#0c4a6e";
+    document.getElementById("msg-levelup-enabled").checked = tmpl.levelUpEnabled !== false;
+    document.getElementById("msg-levelup-content").value = tmpl.levelUpContent || "";
+    document.getElementById("msg-levelup-card").checked = !!tmpl.levelUpCardEnabled;
     const chanOpts = channels.map(c => `<option value="${c.id}">#${c.name}</option>`).join("");
     document.getElementById("msg-welcome-testchannel").innerHTML = chanOpts;
     document.getElementById("msg-leave-testchannel").innerHTML = chanOpts;
+    document.getElementById("msg-levelup-channel").innerHTML = `<option value="">— same channel as the message —</option>` + channels.map(c => `<option value="${c.id}" ${c.id === tmpl.levelUpChannelId ? "selected" : ""}>#${c.name}</option>`).join("");
     renderVarChips();
   } catch (e) { toast("Messages load failed: " + e.message, true); }
 }
@@ -2986,6 +3018,10 @@ async function saveMessages() {
     leaveContent: document.getElementById("msg-leave-content").value.trim(),
     leaveText: document.getElementById("msg-leave-text").value.trim(),
     leaveColor: document.getElementById("msg-leave-color").value,
+    levelUpEnabled: document.getElementById("msg-levelup-enabled").checked,
+    levelUpChannelId: document.getElementById("msg-levelup-channel").value || null,
+    levelUpContent: document.getElementById("msg-levelup-content").value.trim(),
+    levelUpCardEnabled: document.getElementById("msg-levelup-card").checked,
   };
   try { await api("/api/messages", { method: "POST", body: JSON.stringify(body) }); toast("✅ Messages saved"); }
   catch (e) { toast("Save failed: " + e.message, true); }
@@ -3003,6 +3039,15 @@ async function testMessage(kind) {
 // and turns it off, so the bot falls back to its built-in default message
 // — a quick way back if custom edits didn't turn out how you wanted.
 async function resetMessageDefault(kind) {
+  if (kind === "levelup") {
+    document.getElementById("msg-levelup-enabled").checked = true;
+    document.getElementById("msg-levelup-channel").value = "";
+    document.getElementById("msg-levelup-content").value = "";
+    document.getElementById("msg-levelup-card").checked = false;
+    await saveMessages();
+    toast("Level-up message reset to default");
+    return;
+  }
   document.getElementById(`msg-${kind}-enabled`).checked = false;
   document.getElementById(`msg-${kind}-content`).value = "";
   document.getElementById(`msg-${kind}-text`).value = "";

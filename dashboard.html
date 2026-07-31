@@ -826,6 +826,7 @@
   <div class="nav-item" data-page="logs" onclick="showPage('logs')"><span class="ic">📜</span> Logs</div>
 
   <div class="nav-section-lbl">Moderation</div>
+  <div class="nav-item" data-page="members" onclick="showPage('members')"><span class="ic">👥</span> Members</div>
   <div class="nav-item" data-page="security" onclick="showPage('security')"><span class="ic">🛡️</span> Security</div>
   <div class="nav-item" data-page="permissions" onclick="showPage('permissions')"><span class="ic">👑</span> Permissions</div>
   <div class="nav-item" data-page="automod" onclick="showPage('automod')"><span class="ic">🧹</span> Automod</div>
@@ -843,6 +844,7 @@
   <div class="nav-item" data-page="roles" onclick="showPage('roles')"><span class="ic">🎭</span> Roles &amp; Reactions</div>
   <div class="nav-item" data-page="fun" onclick="showPage('fun')"><span class="ic">✨</span> Starboard &amp; More</div>
   <div class="nav-item" data-page="customcmds" onclick="showPage('customcmds')"><span class="ic">⌨️</span> Custom Commands</div>
+  <div class="nav-item" data-page="tags" onclick="showPage('tags')"><span class="ic">📌</span> Tags</div>
   <div class="nav-item" data-page="verify" onclick="showPage('verify')"><span class="ic">✅</span> Verification</div>
 
   <div class="nav-section-lbl">Configuration</div>
@@ -938,6 +940,27 @@
   </div>
 
   <!-- LOGS -->
+  <div class="page" id="page-members">
+    <h1>Members</h1>
+    <div class="subtitle">Search any member and review their warnings, notes, economy, and leveling — all in one place</div>
+    <div class="card">
+      <input type="text" id="mem-search" placeholder="Search by username or user ID…" style="width:100%" oninput="debounceSearchMembers()">
+    </div>
+    <div class="builder-grid">
+      <div>
+        <div class="card">
+          <div class="card-title">Results <span id="mem-result-count" style="color:var(--text-dim); font-weight:400;"></span></div>
+          <div id="mem-list"><div class="empty-state">Type a username or ID to search, or wait a moment for the default list.</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="card" id="mem-detail-card" style="display:none; position:sticky; top:20px;">
+          <div id="mem-detail"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="page-logs">
     <h1>Logs</h1>
     <div class="subtitle"><span class="live-pulse" style="margin-right:6px"></span>Everything happening in your server — moderation, security, members, messages, and config changes</div>
@@ -1095,6 +1118,25 @@
     <div class="card">
       <div class="card-title">Existing commands</div>
       <div id="customcmds-list">Loading...</div>
+    </div>
+  </div>
+
+  <!-- TAGS -->
+  <div class="page" id="page-tags">
+    <h1>Tags</h1>
+    <div class="subtitle">Saved answers to common questions — members look these up with <code>/tag get</code></div>
+    <div class="card">
+      <div class="card-title" id="tag-form-title">Create a tag</div>
+      <div class="field-group"><label class="field-label">Name</label><input type="text" id="tag-name" style="width:100%" placeholder="e.g. rules, faq, discord-nitro"></div>
+      <div class="field-group"><label class="field-label">Content</label><textarea id="tag-content" rows="5" style="width:100%" placeholder="What /tag get should reply with"></textarea></div>
+      <div class="row">
+        <button class="btn-primary" onclick="saveTag()" id="tag-save-btn">➕ Create Tag</button>
+        <button class="btn-ghost" id="tag-cancel-btn" style="display:none" onclick="resetTagForm()">Cancel Edit</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">All Tags <button class="btn-ghost btn-sm" onclick="loadTags()">↻ Refresh</button></div>
+      <div id="tags-list"><div class="empty-state">Loading…</div></div>
     </div>
   </div>
 
@@ -1766,7 +1808,7 @@ function showPage(name) {
     overview: loadOverview, commands: loadCommands, security: loadSecurity, permissions: loadPermissions, automod: loadAutomod,
     shop: loadShop, music: loadMusic, builder: loadBuilderChannels, leaderboards: loadLeaderboards, tickets: loadTickets,
     settings: loadSettings, logs: loadLogs, roles: loadRolesPage, fun: loadFunPage, customcmds: loadCustomCmds,
-    verify: loadVerify, giveaways: loadGiveawaysPage, community: loadCommunityPage,
+    verify: loadVerify, giveaways: loadGiveawaysPage, community: loadCommunityPage, members: loadMemberList, tags: loadTags,
     botcontrol: loadBotControl, messages: loadMessages, youtube: loadYoutube, admintools: loadAdminTools,
   };
   if (loaders[name]) {
@@ -1831,6 +1873,147 @@ async function loadSidebarVersion() {
       document.getElementById("sidebar-version").textContent = `Frostbyte v${stats.version}`;
     }
   } catch (e) { /* not worth surfacing — footer just stays blank */ }
+}
+
+// ── Members ──
+let _memSearchTimer = null;
+function debounceSearchMembers() {
+  clearTimeout(_memSearchTimer);
+  _memSearchTimer = setTimeout(loadMemberList, 350);
+}
+
+async function loadMemberList() {
+  const listEl = document.getElementById("mem-list");
+  const search = document.getElementById("mem-search").value.trim();
+  try {
+    const { total, members } = await api("/api/members?search=" + encodeURIComponent(search) + "&limit=50");
+    document.getElementById("mem-result-count").textContent = `(${total})`;
+    if (!members.length) {
+      listEl.innerHTML = `<div class="empty-state">No members found.</div>`;
+      return;
+    }
+    listEl.innerHTML = members.map(m => `
+      <div class="row" style="align-items:center; padding:8px 4px; border-bottom:1px solid var(--border); cursor:pointer;" onclick="loadMemberDetail('${m.id}')">
+        <img src="${m.avatarURL}" style="width:32px; height:32px; border-radius:50%;">
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${m.displayName}</div>
+          <div class="toggle-desc">@${m.username}</div>
+        </div>
+        ${m.warnCount ? `<span style="font-size:11px; color:var(--warn);">⚠️ ${m.warnCount}</span>` : ""}
+      </div>
+    `).join("");
+  } catch (e) { listEl.innerHTML = `<div class="empty-state">Search failed: ${e.message}</div>`; }
+}
+
+async function loadMemberDetail(id) {
+  const card = document.getElementById("mem-detail-card");
+  const el = document.getElementById("mem-detail");
+  card.style.display = "";
+  el.innerHTML = `<div class="empty-state">Loading…</div>`;
+  try {
+    const m = await api("/api/members/" + id);
+    const joined = m.joinedAt ? new Date(m.joinedAt).toLocaleDateString() : "Unknown";
+    el.innerHTML = `
+      <div class="row" style="align-items:center; margin-bottom:14px;">
+        <img src="${m.avatarURL}" style="width:56px; height:56px; border-radius:50%;">
+        <div>
+          <div style="font-weight:700; font-size:16px;">${m.displayName}</div>
+          <div class="toggle-desc">@${m.username} • Joined ${joined}</div>
+        </div>
+      </div>
+
+      <div class="row" style="gap:8px; margin-bottom:14px;">
+        <div class="stat" style="flex:1;"><div class="val" style="font-size:18px;">${m.level}</div><div class="lbl">Level</div></div>
+        <div class="stat" style="flex:1;"><div class="val" style="font-size:18px;">${m.warns.length}</div><div class="lbl">Warnings</div></div>
+        <div class="stat" style="flex:1;"><div class="val" style="font-size:18px;">${m.reputation}</div><div class="lbl">Reputation</div></div>
+      </div>
+
+      <div class="field-label" style="margin-bottom:6px;">Quick Actions</div>
+      <div class="row" style="margin-bottom:6px; flex-wrap:wrap;">
+        <button class="btn-ghost btn-sm" onclick="memberQuickAction('${m.id}', 'warn')">⚠️ Warn</button>
+        <button class="btn-ghost btn-sm" onclick="memberQuickAction('${m.id}', 'timeout')">⏱️ Timeout</button>
+        <button class="btn-ghost btn-sm" onclick="memberQuickAction('${m.id}', 'kick')">👢 Kick</button>
+        <button class="btn-ghost btn-sm" style="color:var(--danger);" onclick="memberQuickAction('${m.id}', 'ban')">🔨 Ban</button>
+      </div>
+      <div id="mem-action-panel" style="margin-bottom:14px;"></div>
+
+      <div class="field-label" style="margin-bottom:6px;">Roles</div>
+      <div style="margin-bottom:14px;">${m.roles.length ? m.roles.map(r => `<span style="display:inline-block; padding:2px 8px; border-radius:6px; background:rgba(255,255,255,0.06); font-size:11px; margin:2px;">${r.name}</span>`).join("") : `<span class="toggle-desc">No roles</span>`}</div>
+
+      <div class="field-label" style="margin-bottom:6px;">Economy</div>
+      <div class="row" style="margin-bottom:14px;">
+        <input type="number" id="mem-wallet" value="${m.economy.balance}" style="flex:1;" placeholder="Wallet">
+        <input type="number" id="mem-bank" value="${m.economy.bank}" style="flex:1;" placeholder="Bank">
+        <button class="btn-ghost btn-sm" onclick="saveMemberEconomy('${m.id}')">💾</button>
+      </div>
+
+      <div class="field-label" style="margin-bottom:6px;">Warnings (${m.warns.length})</div>
+      <div style="max-height:160px; overflow-y:auto; margin-bottom:14px;">
+        ${m.warns.length ? m.warns.map(w => `<div style="font-size:12px; padding:6px 0; border-bottom:1px solid var(--border);">Case #${w.case ?? "?"} — ${w.reason} <span class="toggle-desc">by ${w.mod}</span></div>`).join("") : `<div class="toggle-desc">No warnings.</div>`}
+      </div>
+
+      <div class="field-label" style="margin-bottom:6px;">Staff Notes (${m.notes.length})</div>
+      <div style="max-height:140px; overflow-y:auto; margin-bottom:10px;">
+        ${m.notes.length ? m.notes.map(n => `<div style="font-size:12px; padding:6px 0; border-bottom:1px solid var(--border);">${n.note} <span class="toggle-desc">— ${n.mod}</span></div>`).join("") : `<div class="toggle-desc">No notes yet.</div>`}
+      </div>
+      <div class="row">
+        <input type="text" id="mem-new-note" placeholder="Add a note…" style="flex:1;" onkeydown="if(event.key==='Enter') addMemberNote('${m.id}')">
+        <button class="btn-primary btn-sm" onclick="addMemberNote('${m.id}')">Add</button>
+      </div>
+    `;
+  } catch (e) { el.innerHTML = `<div class="empty-state">Couldn't load member: ${e.message}</div>`; }
+}
+
+async function saveMemberEconomy(id) {
+  const balance = document.getElementById("mem-wallet").value;
+  const bank = document.getElementById("mem-bank").value;
+  try { await api(`/api/members/${id}/economy`, { method: "POST", body: JSON.stringify({ balance, bank }) }); toast("💾 Saved"); }
+  catch (e) { toast("Save failed: " + e.message, true); }
+}
+
+// Shows a small inline reason (+ duration, for timeout) form under the
+// quick-action buttons instead of firing the action immediately — a
+// kick/ban/timeout is destructive enough to want a confirm step, but a
+// full page modal is overkill for one text field.
+function memberQuickAction(id, action) {
+  const panel = document.getElementById("mem-action-panel");
+  const labels = { warn: "⚠️ Warn", timeout: "⏱️ Timeout", kick: "👢 Kick", ban: "🔨 Ban" };
+  panel.innerHTML = `
+    <div class="card" style="background:rgba(255,255,255,0.03); margin:0; padding:12px;">
+      <div style="font-weight:600; margin-bottom:8px; font-size:13px;">${labels[action]} this member</div>
+      ${action === "timeout" ? `<input type="number" id="mem-action-minutes" placeholder="Duration in minutes" value="10" style="width:100%; margin-bottom:8px;">` : ""}
+      <input type="text" id="mem-action-reason" placeholder="Reason (optional)" style="width:100%; margin-bottom:8px;">
+      <div class="row">
+        <button class="btn-primary btn-sm" onclick="submitMemberAction('${id}', '${action}')">Confirm</button>
+        <button class="btn-ghost btn-sm" onclick="document.getElementById('mem-action-panel').innerHTML=''">Cancel</button>
+      </div>
+    </div>
+  `;
+}
+
+async function submitMemberAction(id, action) {
+  const reason = document.getElementById("mem-action-reason")?.value.trim() || undefined;
+  const body = { reason };
+  if (action === "timeout") body.minutes = document.getElementById("mem-action-minutes")?.value || 10;
+  try {
+    await api(`/api/members/${id}/${action}`, { method: "POST", body: JSON.stringify(body) });
+    toast(`✅ Action complete`);
+    document.getElementById("mem-action-panel").innerHTML = "";
+    if (action === "warn" || action === "timeout") loadMemberDetail(id); // still a member — refresh to show the new warning/state
+    else loadMemberList(); // kicked/banned — they're gone, back to the list view
+  } catch (e) { toast("Failed: " + e.message, true); }
+}
+
+async function addMemberNote(id) {
+  const input = document.getElementById("mem-new-note");
+  const note = input.value.trim();
+  if (!note) return;
+  try {
+    await api(`/api/members/${id}/note`, { method: "POST", body: JSON.stringify({ note }) });
+    input.value = "";
+    toast("Note added");
+    loadMemberDetail(id);
+  } catch (e) { toast("Failed: " + e.message, true); }
 }
 
 // ── Overview ──
@@ -3094,6 +3277,64 @@ async function addCustomCmd() {
 async function removeCustomCmd(name) {
   try { await api("/api/customcommands/" + encodeURIComponent(name), { method: "DELETE" }); toast("Removed"); loadCustomCmds(); }
   catch (e) { toast("Failed: " + e.message, true); }
+}
+
+// ── Tags ──
+let _tagEditingName = null;
+
+async function loadTags() {
+  const el = document.getElementById("tags-list");
+  try {
+    const tags = await api("/api/tags");
+    el.innerHTML = tags.length ? tags.map(t => `
+      <div class="row" style="align-items:flex-start; padding:10px 0; border-bottom:1px solid var(--border);">
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:600;">📌 ${t.name} <span class="toggle-desc">— used ${t.uses || 0} time${t.uses === 1 ? "" : "s"}</span></div>
+          <div class="toggle-desc" style="white-space:pre-wrap; margin-top:2px;">${t.content.slice(0, 200)}${t.content.length > 200 ? "…" : ""}</div>
+        </div>
+        <button class="btn-ghost btn-sm" onclick="editTag('${t.name}', ${JSON.stringify(t.content)})">✏️</button>
+        <button class="btn-ghost btn-sm" onclick="deleteTag('${t.name}')">🗑️</button>
+      </div>
+    `).join("") : `<div class="empty-state">No tags yet — create one above.</div>`;
+  } catch (e) { el.innerHTML = `<div class="empty-state">Couldn't load tags: ${e.message}</div>`; }
+}
+
+function editTag(name, content) {
+  _tagEditingName = name;
+  document.getElementById("tag-name").value = name;
+  document.getElementById("tag-name").disabled = true;
+  document.getElementById("tag-content").value = content;
+  document.getElementById("tag-form-title").textContent = `Editing "${name}"`;
+  document.getElementById("tag-save-btn").textContent = "💾 Save Changes";
+  document.getElementById("tag-cancel-btn").style.display = "";
+  document.getElementById("tag-name").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function resetTagForm() {
+  _tagEditingName = null;
+  document.getElementById("tag-name").value = "";
+  document.getElementById("tag-name").disabled = false;
+  document.getElementById("tag-content").value = "";
+  document.getElementById("tag-form-title").textContent = "Create a tag";
+  document.getElementById("tag-save-btn").textContent = "➕ Create Tag";
+  document.getElementById("tag-cancel-btn").style.display = "none";
+}
+
+async function saveTag() {
+  const name = document.getElementById("tag-name").value.trim();
+  const content = document.getElementById("tag-content").value.trim();
+  if (!name || !content) return toast("Name and content are both required", true);
+  try {
+    await api("/api/tags", { method: "POST", body: JSON.stringify({ name, content }) });
+    toast(_tagEditingName ? "💾 Tag updated" : "📌 Tag created");
+    resetTagForm();
+    loadTags();
+  } catch (e) { toast("Save failed: " + e.message, true); }
+}
+
+async function deleteTag(name) {
+  try { await api("/api/tags/" + encodeURIComponent(name), { method: "DELETE" }); toast("🗑️ Deleted"); loadTags(); }
+  catch (e) { toast("Delete failed: " + e.message, true); }
 }
 
 // ── Verify ──

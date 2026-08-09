@@ -1514,7 +1514,7 @@
     <div class="subtitle">Announce new uploads automatically — checked every 5 minutes, no API key needed</div>
     <div class="card">
       <div class="card-title">Add a channel to watch</div>
-      <div class="field-group"><label class="field-label">YouTube Channel ID</label><input type="text" id="yt-channelid" style="width:100%" placeholder="UCxxxxxxxxxxxxxxxxxxxxxx"></div>
+      <div class="field-group"><label class="field-label">YouTube Handle, URL, or Channel ID</label><input type="text" id="yt-channelid" style="width:100%" placeholder="@channelname, full URL, or UCxxxxxxxxxxxxxxxxxxxxxx"></div>
       <div class="field-group"><label class="field-label">Channel display name (optional)</label><input type="text" id="yt-channelname" style="width:100%" placeholder="e.g. My Gaming Channel"></div>
       <div class="field-group"><label class="field-label">Announcement channel</label><select id="yt-discordchannel" style="width:100%"></select></div>
       <button class="btn-primary" onclick="addYoutubeWatch()">➕ Add Channel</button>
@@ -3090,10 +3090,11 @@ async function addYoutubeWatch() {
     ytChannelName: document.getElementById("yt-channelname").value.trim(),
     discordChannel: document.getElementById("yt-discordchannel").value,
   };
-  if (!body.ytChannelId || !body.discordChannel) return toast("Channel ID and announcement channel are both required", true);
+  if (!body.ytChannelId || !body.discordChannel) return toast("A YouTube handle/URL/ID and announcement channel are both required", true);
   try {
-    await api("/api/youtube", { method: "POST", body: JSON.stringify(body) });
-    toast("✅ Now watching that channel");
+    const result = await api("/api/youtube", { method: "POST", body: JSON.stringify(body) });
+    const resolvedName = result?.entry?.ytChannelName;
+    toast(resolvedName ? `✅ Now watching "${resolvedName}"` : "✅ Now watching that channel");
     document.getElementById("yt-channelid").value = "";
     document.getElementById("yt-channelname").value = "";
     loadYoutube();
